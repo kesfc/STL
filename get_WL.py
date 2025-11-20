@@ -135,11 +135,16 @@ def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
             set(tmp[team_col].unique()) - set(TEAM_ABBR.keys())
         )
         if unknown:
-            print(f"[warning] {season_end_year} 有未映射队名: {unknown}")
+            print(f"[warning] {season_end_year} unknown team: {unknown}")
 
         tmp["TEAM_ABBR"] = tmp[team_col].map(TEAM_ABBR)
         tmp = tmp[tmp["TEAM_ABBR"].notna()]
 
+        if tmp.empty:
+            continue
+
+        tmp = tmp[["TEAM_ABBR", "W", "L"]].copy()
+        all_rows.append(tmp)
     merged = pd.concat(all_rows, axis=0, ignore_index=True)
     merged = merged.drop_duplicates(subset=["TEAM_ABBR"], keep="first")
 
@@ -150,7 +155,7 @@ def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    SEASON_END_YEARS = range(1968, 2025)  
+    SEASON_END_YEARS = range(2025, 2027)  
 
     out_root = os.path.join("Team_stats", "WL")
     os.makedirs(out_root, exist_ok=True)  
@@ -158,7 +163,7 @@ if __name__ == "__main__":
     for year in SEASON_END_YEARS:
         df = fetch_season_wl_br(year)  
         y1 = year - 1
-        out_path = os.path.join(out_root, f"{year}-{y1}.csv")
+        out_path = os.path.join(out_root, f"{y1}-{year}.csv")
         df.to_csv(out_path, index=False)
         print(f"{year} saved to {out_path}")
         time.sleep(3)
