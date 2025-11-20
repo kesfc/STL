@@ -116,7 +116,7 @@ def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    SEASON_END_YEARS = range(1968, 2026)  
+    SEASON_END_YEARS = range(2004, 2020)  
 
     out_root = os.path.join("Team_stats", "WL")
     os.makedirs(out_root, exist_ok=True)  
@@ -127,3 +127,4 @@ if __name__ == "__main__":
         out_path = os.path.join(out_root, f"{year}-{y1}.csv")
         df.to_csv(out_path, index=False)
         print(f"{year} saved to {out_path}")
+        time.sleep(3)
