@@ -1,17 +1,8 @@
-import os
-import time
-import requests
 import pandas as pd
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
-}
+import os
 
 TEAM_ABBR = {
+    # ---- 当前 30 支队（你原来的那一部分）----
     "Atlanta Hawks": "ATL",
     "Boston Celtics": "BOS",
     "Brooklyn Nets": "BKN",
@@ -43,57 +34,53 @@ TEAM_ABBR = {
     "Utah Jazz": "UTA",
     "Washington Wizards": "WAS",
 
+    # ---- 历史名字：Clippers / Braves ----
+    # Los Angeles Clippers, San Diego Clippers, Buffalo Braves :contentReference[oaicite:0]{index=0}
     "Buffalo Braves": "LAC",
     "San Diego Clippers": "LAC",
 
+    # ---- 历史名字：Nets 系 ----
+    # Brooklyn Nets, New Jersey Nets, New York Nets :contentReference[oaicite:1]{index=1}
     "New Jersey Nets": "BKN",
     "New York Nets": "BKN",
 
+    # ---- 历史名字：New Orleans 系 ----
+    # New Orleans Pelicans, New Orleans/Oklahoma City Hornets, New Orleans Hornets :contentReference[oaicite:2]{index=2}
     "New Orleans Hornets": "NOP",
     "New Orleans/Oklahoma City Hornets": "NOP",
+
+    # ---- 历史名字：Jazz 系 ----
+    # New Orleans Jazz, Utah Jazz :contentReference[oaicite:3]{index=3}
     "New Orleans Jazz": "UTA",
 
+    # ---- 历史名字：Kings 系 ----
+    # Sacramento Kings, Kansas City Kings, Kansas City-Omaha Kings :contentReference[oaicite:4]{index=4}
     "Kansas City Kings": "SAC",
     "Kansas City-Omaha Kings": "SAC",
 
+    # ---- 历史名字：Grizzlies 系 ----
+    # Vancouver Grizzlies 迁到 Memphis :contentReference[oaicite:5]{index=5}
     "Vancouver Grizzlies": "MEM",
 
+    # ---- 历史名字：Sonics / Thunder 系 ----
+    # Seattle SuperSonics 迁到 Oklahoma City Thunder :contentReference[oaicite:6]{index=6}
     "Seattle SuperSonics": "OKC",
 
+    # ---- 历史名字：Wizards / Bullets 系 ----
+    # Baltimore Bullets -> Capital Bullets -> Washington Bullets -> Washington Wizards :contentReference[oaicite:7]{index=7}
     "Washington Bullets": "WAS",
-    "Capital Bullets": "WAS",
+    "Capital Bullets": "WAS",  # 理论上 73-74 才会用到，如果你往前多抓一两年也不会崩
 
+    # ---- 历史名字：Charlotte 系 ----
+    # Charlotte Hornets 历史被 NBA 认定为一个 franchise，2004-2014 期间叫 Charlotte Bobcats :contentReference[oaicite:8]{index=8}
     "Charlotte Bobcats": "CHA",
 }
 
 
-def fetch_season_wl_br(season_end_year: int,
-                       max_retries: int = 5,
-                       base_sleep: int = 5) -> pd.DataFrame:
+def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
     url = f"https://www.basketball-reference.com/leagues/NBA_{season_end_year}_standings.html"
 
-    html = None
-    for attempt in range(1, max_retries + 1):
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=20)
-            if resp.status_code == 200:
-                html = resp.text
-                break
-            elif resp.status_code == 429:
-                wait = base_sleep * attempt
-                print(f"[{season_end_year}] HTTP 429 Too Many Requests, wait {wait}s try attempt {attempt} )...")
-                time.sleep(wait)
-            else:
-                resp.raise_for_status()
-        except requests.RequestException as e:
-            wait = base_sleep * attempt
-            print(f"[{season_end_year}] error {e}, wait {wait}s try attempt {attempt}...")
-            time.sleep(wait)
-
-    if html is None:
-        raise RuntimeError(f"fail {url}")
-
-    tables = pd.read_html(html)
+    tables = pd.read_html(url)
 
     all_rows = []
 
@@ -102,6 +89,7 @@ def fetch_season_wl_br(season_end_year: int,
             continue
 
         team_col = df.columns[0]
+
         tmp = df[[team_col, "W", "L"]].copy()
         tmp[team_col] = (
             tmp[team_col]
@@ -110,38 +98,32 @@ def fetch_season_wl_br(season_end_year: int,
             .str.strip()
         )
 
-        unknown = sorted(set(tmp[team_col].unique()) - set(TEAM_ABBR.keys()))
-        if unknown:
-            print(f"[warning] {season_end_year} unknown team: {unknown}")
-
         tmp["TEAM_ABBR"] = tmp[team_col].map(TEAM_ABBR)
         tmp = tmp[tmp["TEAM_ABBR"].notna()]
+
         if tmp.empty:
             continue
 
         tmp = tmp[["TEAM_ABBR", "W", "L"]].copy()
-        tmp.columns = ["TEAM_ABBR", "WINS", "LOSSES"]
         all_rows.append(tmp)
-
-
     merged = pd.concat(all_rows, axis=0, ignore_index=True)
     merged = merged.drop_duplicates(subset=["TEAM_ABBR"], keep="first")
 
-
-    merged = merged.sort_values("TEAM_ABBR").reset_index(drop=True)
-    return merged
+    merged["WINS"] = merged["W"].astype(int)
+    merged["LOSSES"] = merged["L"].astype(int)
+    out = merged[["TEAM_ABBR", "WINS", "LOSSES"]].sort_values("TEAM_ABBR").reset_index(drop=True)
+    return out
 
 
 if __name__ == "__main__":
     SEASON_END_YEARS = range(1968, 2026)  
 
-    out_dir = os.path.join("Team_stats", "WL")
-    os.makedirs(out_dir, exist_ok=True)
+    out_root = os.path.join("Team_stats", "WL")
+    os.makedirs(out_root, exist_ok=True)  
 
     for year in SEASON_END_YEARS:
+        df = fetch_season_wl_br(year)  
         y1 = year - 1
-        df = fetch_season_wl_br(year)
-        out_path = os.path.join(out_dir, f"{year}-{y1}.csv")
+        out_path = os.path.join(out_root, f"{year}-{y1}.csv")
         df.to_csv(out_path, index=False)
-        print(f"  -> saved to {out_path}")
-        time.sleep(3)
+        print(f"{year} saved to {out_path}")
