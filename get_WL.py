@@ -3,7 +3,7 @@ import os
 import time
 
 TEAM_ABBR = {
-    # ---- 当前 30 支队（你原来的那一部分）----
+    # ---- Current 30 teams ----
     "Atlanta Hawks": "ATL",
     "Boston Celtics": "BOS",
     "Brooklyn Nets": "BKN",
@@ -35,46 +35,79 @@ TEAM_ABBR = {
     "Utah Jazz": "UTA",
     "Washington Wizards": "WAS",
 
-    # ---- 历史名字：Clippers / Braves ----
-    # Los Angeles Clippers, San Diego Clippers, Buffalo Braves :contentReference[oaicite:0]{index=0}
-    "Buffalo Braves": "LAC",
-    "San Diego Clippers": "LAC",
+    # ---- Defunct BAA/NBA teams ----
+    "Anderson Packers": "AND",
+    "Baltimore Bullets (1947-1955)": "BLB",  # original Bullets, folded in 1954-55
+    "Chicago Stags": "CHS",
+    "Cleveland Rebels": "CLR",
+    "Denver Nuggets (1949-1950)": "DNV",     # original Nuggets
+    "Detroit Falcons": "DTF",
+    "Indianapolis Jets": "INJ",
+    "Indianapolis Olympians": "INO",
+    "Pittsburgh Ironmen": "PIT",
+    "Providence Steamrollers": "PRO",
+    "Sheboygan Red Skins": "SHE",
+    "St. Louis Bombers": "SLB",
+    "Toronto Huskies": "TRH",
+    "Washington Capitols": "WSC",
+    "Waterloo Hawks": "WAT",
 
-    # ---- 历史名字：Nets 系 ----
-    # Brooklyn Nets, New Jersey Nets, New York Nets :contentReference[oaicite:1]{index=1}
-    "New Jersey Nets": "BKN",
-    "New York Nets": "BKN",
+    # ---- Relocated / old names of current franchises ----
+    # Hawks franchise
+    "Tri-Cities Blackhawks": "TRI",
+    "Milwaukee Hawks": "MLH",
+    "St. Louis Hawks": "STL",
 
-    # ---- 历史名字：New Orleans 系 ----
-    # New Orleans Pelicans, New Orleans/Oklahoma City Hornets, New Orleans Hornets :contentReference[oaicite:2]{index=2}
-    "New Orleans Hornets": "NOP",
-    "New Orleans/Oklahoma City Hornets": "NOP",
+    # Pistons franchise
+    "Fort Wayne Pistons": "FTW",
 
-    # ---- 历史名字：Jazz 系 ----
-    # New Orleans Jazz, Utah Jazz :contentReference[oaicite:3]{index=3}
-    "New Orleans Jazz": "UTA",
+    # Royals / Kings franchise
+    "Rochester Royals": "ROC",
+    "Cincinnati Royals": "CIN",
+    "Kansas City-Omaha Kings": "KCO",
+    "Kansas City Kings": "KCK",
 
-    # ---- 历史名字：Kings 系 ----
-    # Sacramento Kings, Kansas City Kings, Kansas City-Omaha Kings :contentReference[oaicite:4]{index=4}
-    "Kansas City Kings": "SAC",
-    "Kansas City-Omaha Kings": "SAC",
+    # Lakers franchise
+    "Minneapolis Lakers": "MPL",
 
-    # ---- 历史名字：Grizzlies 系 ----
-    # Vancouver Grizzlies 迁到 Memphis :contentReference[oaicite:5]{index=5}
-    "Vancouver Grizzlies": "MEM",
+    # Warriors franchise
+    "Philadelphia Warriors": "PHW",
+    "San Francisco Warriors": "SFW",
 
-    # ---- 历史名字：Sonics / Thunder 系 ----
-    # Seattle SuperSonics 迁到 Oklahoma City Thunder :contentReference[oaicite:6]{index=6}
-    "Seattle SuperSonics": "OKC",
-
-    # ---- 历史名字：Wizards / Bullets 系 ----
-    # Baltimore Bullets -> Capital Bullets -> Washington Bullets -> Washington Wizards :contentReference[oaicite:7]{index=7}
+    # Bullets / Wizards franchise
+    "Chicago Packers": "CHP",
+    "Chicago Zephyrs": "CHP",
+    "Baltimore Bullets": "BAL",          # 1963–1973 Bullets (Wizards lineage)
+    "Capital Bullets": "CAP",
     "Washington Bullets": "WAS",
-    "Capital Bullets": "WAS",  # 理论上 73-74 才会用到，如果你往前多抓一两年也不会崩
 
-    # ---- 历史名字：Charlotte 系 ----
-    # Charlotte Hornets 历史被 NBA 认定为一个 franchise，2004-2014 期间叫 Charlotte Bobcats :contentReference[oaicite:8]{index=8}
-    "Charlotte Bobcats": "CHA",
+    # Nationals / 76ers franchise
+    "Syracuse Nationals": "SYR",
+
+    # Rockets franchise
+    "San Diego Rockets": "SDR",
+
+    # Braves / Clippers franchise
+    "Buffalo Braves": "BUF",
+    "San Diego Clippers": "SDC",
+
+    # Jazz franchise
+    "New Orleans Jazz": "NOR",
+
+    # Grizzlies franchise
+    "Vancouver Grizzlies": "VAN",
+
+    # Sonics / Thunder franchise
+    "Seattle SuperSonics": "SEA",
+
+    # Nets franchise
+    "New Jersey Nets": "NJN",
+    "New York Nets": "NYN",
+
+    # Charlotte / New Orleans mess
+    "Charlotte Bobcats": "CHN",
+    "New Orleans Hornets": "NOH",
+    "New Orleans/Oklahoma City Hornets": "NOK",
 }
 
 
@@ -98,15 +131,15 @@ def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
             .str.replace("*", "", regex=False)
             .str.strip()
         )
+        unknown = sorted(
+            set(tmp[team_col].unique()) - set(TEAM_ABBR.keys())
+        )
+        if unknown:
+            print(f"[warning] {season_end_year} 有未映射队名: {unknown}")
 
         tmp["TEAM_ABBR"] = tmp[team_col].map(TEAM_ABBR)
         tmp = tmp[tmp["TEAM_ABBR"].notna()]
 
-        if tmp.empty:
-            continue
-
-        tmp = tmp[["TEAM_ABBR", "W", "L"]].copy()
-        all_rows.append(tmp)
     merged = pd.concat(all_rows, axis=0, ignore_index=True)
     merged = merged.drop_duplicates(subset=["TEAM_ABBR"], keep="first")
 
@@ -117,7 +150,7 @@ def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    SEASON_END_YEARS = range(2004, 2020)  
+    SEASON_END_YEARS = range(1968, 2025)  
 
     out_root = os.path.join("Team_stats", "WL")
     os.makedirs(out_root, exist_ok=True)  
