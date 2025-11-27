@@ -46,9 +46,7 @@ print("Train shape:", train.shape)
 train["WIN_PCT"] = train["WINS"] / (train["WINS"] + train["LOSSES"])
 
 def create_features(df, is_training=True, train_df=None):
-    """
-    创建特征，避免数据泄露
-    """
+
     df = df.copy()
     
     if "WIN_PCT" not in df.columns and "WINS" in df.columns and "LOSSES" in df.columns:
@@ -151,14 +149,10 @@ print("X_train shape:", X_train.shape)
 
 
 def time_series_validation(X, y, seasons, n_splits=3):
-    """
-    时间序列交叉验证
-    """
     tscv = TimeSeriesSplit(n_splits=n_splits)
     maes = []
     
     for fold, (train_idx, val_idx) in enumerate(tscv.split(X)):
-        # 确保验证集的时间在训练集之后
         if max(seasons[train_idx]) >= min(seasons[val_idx]):
             print(f"  Skipping fold {fold+1} due to time leakage")
             continue
