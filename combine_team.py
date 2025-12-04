@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-S = range(2025, 2027) 
+S = range(2005, 2026) 
 for i in S:
     SEASON = f"{i-1}-{i}"
     print(f"Processing season {SEASON} ...")
