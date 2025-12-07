@@ -1,13 +1,14 @@
 import os
 import glob
+import json
 import numpy as np
 import pandas as pd
 import time
 import random
 from datetime import datetime
 from sklearn.linear_model import LogisticRegression, Ridge, Lasso, ElasticNet, BayesianRidge
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor, ExtraTreesRegressor, \
-    VotingRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor, \
+    ExtraTreesRegressor, VotingRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
@@ -32,9 +33,7 @@ data = pd.read_csv(summary_path)
 if 'WINS' not in data.columns or 'LOSSES' not in data.columns:
     raise ValueError("CSV must contain 'WINS' and 'LOSSES' columns")
 
-# Drop rows with missing win/loss values
-data = data.dropna(subset=["WINS", "LOSSES"])
-
+# NOTE: 不再在这里 dropna，让 holdout 赛季保留所有球队
 # Sort and compute basic win-rate metrics
 data = data.sort_values(["Team", "SeasonEndYear"])
 data["WIN_PCT"] = data["WINS"] / (data["WINS"] + data["LOSSES"])
@@ -361,10 +360,14 @@ class PreprocessorFactory:
 
 # ========== Evaluation function ==========
 def evaluate_predictions(df, true_col="WIN_PCT", pred_col="PRED_SCORE"):
-    """Evaluate ranking predictions (exact match and within-k accuracy)."""
+    """Evaluate ranking predictions (exact match and within-k accuracy).
+
+    NOTE: 使用和打印结果一致的排名逻辑：平局共享名次 (method='min')
+    """
     df = df.copy()
-    df = df.sort_values(true_col, ascending=False)
-    df["TRUE_RANK"] = np.arange(1, len(df) + 1)
+
+    # 和 detailed_predictions 里保持一致的 rank 定义
+    df["TRUE_RANK"] = df[true_col].rank(method="min", ascending=False).astype(int)
     df["PRED_RANK"] = df[pred_col].rank(method="min", ascending=False).astype(int)
     df["RANK_DIFF"] = df["PRED_RANK"] - df["TRUE_RANK"]
 
@@ -372,15 +375,15 @@ def evaluate_predictions(df, true_col="WIN_PCT", pred_col="PRED_SCORE"):
     within1_acc = (df["RANK_DIFF"].abs() <= 1).mean()
     within2_acc = (df["RANK_DIFF"].abs() <= 2).mean()
 
-    # Overall score is a weighted combination of exact and within-1 accuracy
     overall_score = within1_acc * 0.7 + exact_acc * 0.3
 
     return {
         "exact_rank_acc": exact_acc,
         "within1_rank_acc": within1_acc,
         "within2_rank_acc": within2_acc,
-        "overall_score": overall_score
+        "overall_score": overall_score,
     }
+
 
 
 # ========== Main auto-optimization loop ==========
@@ -393,9 +396,14 @@ def auto_optimize():
     print(f"Target: Exact >= {TARGET_EXACT * 100:.0f}%, Within1 >= {TARGET_WITHIN1 * 100:.0f}%")
     print("=" * 80)
 
+    full_df = data.copy()
+
     # Train / test split by season
-    train_df = data[~data["Season"].isin(HOLDOUT_SEASONS)].copy()
-    test_df = data[data["Season"].isin(HOLDOUT_SEASONS)].copy()
+    train_df = full_df[~full_df["Season"].isin(HOLDOUT_SEASONS)].copy()
+    test_df = full_df[full_df["Season"].isin(HOLDOUT_SEASONS)].copy()
+
+    # 只在训练集上丢掉没有 W/L 的行
+    train_df = train_df.dropna(subset=["WINS", "LOSSES"])
 
     print(f"Training seasons: {train_df['Season'].nunique()} ({len(train_df)} rows)")
     print(f"Test seasons: {test_df['Season'].nunique()} ({len(test_df)} rows)")
@@ -465,6 +473,7 @@ def auto_optimize():
                 recent_pred = model.predict(X_recent)
                 recent_df["PRED_SCORE"] = recent_pred
 
+                # 训练集里 WIN_PCT 都有值，可以直接 eval
                 val_metrics = evaluate_predictions(recent_df, true_col="WIN_PCT", pred_col="PRED_SCORE")
                 print(
                     f"  Val - Exact: {val_metrics['exact_rank_acc']:.3f}, Within1: {val_metrics['within1_rank_acc']:.3f}")
@@ -492,8 +501,13 @@ def auto_optimize():
                 test_pred = model.predict(X_test)
                 test_feat["PRED_SCORE"] = test_pred
 
+                # 只对有真实 WIN_PCT 的球队算指标（有些球队 W/L 可能是 NaN）
+                eval_df = test_feat.dropna(subset=["WIN_PCT"]).copy()
+                if len(eval_df) == 0:
+                    continue
+
                 # Evaluate ranking quality
-                test_metrics = evaluate_predictions(test_feat, true_col="WIN_PCT", pred_col="PRED_SCORE")
+                test_metrics = evaluate_predictions(eval_df, true_col="WIN_PCT", pred_col="PRED_SCORE")
                 all_holdout_results.append(test_metrics)
 
             # 7. Aggregate metrics across all holdout seasons
@@ -504,17 +518,20 @@ def auto_optimize():
 
                 print(f"  Test - Exact: {avg_exact:.3f}, Within1: {avg_within1:.3f}, Overall: {avg_overall:.3f}")
 
-                # Log this iteration to history
+                # Log this iteration to history（包含特征数、特征名和完整超参数，方便写 paper）
                 history.append({
                     'iteration': iteration,
                     'feature_method': feature_method['name'],
+                    'n_features': len(feature_cols),
+                    'feature_cols': ",".join(feature_cols),
                     'model_type': model_config['type'],
+                    'model_params': json.dumps(model_config['config'], sort_keys=True),
                     'preprocessor': preprocessor_config['type'],
-                    'val_exact': val_metrics['exact_rank_acc'] if val_metrics else 0,
-                    'val_within1': val_metrics['within1_rank_acc'] if val_metrics else 0,
-                    'test_exact': avg_exact,
-                    'test_within1': avg_within1,
-                    'test_overall': avg_overall
+                    'val_exact': float(val_metrics['exact_rank_acc']) if val_metrics else 0.0,
+                    'val_within1': float(val_metrics['within1_rank_acc']) if val_metrics else 0.0,
+                    'test_exact': float(avg_exact),
+                    'test_within1': float(avg_within1),
+                    'test_overall': float(avg_overall)
                 })
 
                 # Check if the current configuration meets target thresholds
@@ -652,8 +669,13 @@ def detailed_predictions_with_best(best_config):
         test_pred = final_model.predict(X_test)
         test_feat["PRED_SCORE"] = test_pred
 
+        # 只对有真实 WIN_PCT 的球队做评估
+        eval_df = test_feat.dropna(subset=["WIN_PCT"]).copy()
+        if len(eval_df) == 0:
+            continue
+
         # Evaluate season-level ranking metrics
-        metrics = evaluate_predictions(test_feat, true_col="WIN_PCT", pred_col="PRED_SCORE")
+        metrics = evaluate_predictions(eval_df, true_col="WIN_PCT", pred_col="PRED_SCORE")
         all_season_results.append(metrics)
 
         print(f"\nPerformance Metrics:")
@@ -661,7 +683,7 @@ def detailed_predictions_with_best(best_config):
         print(f"  Within 1 rank: {metrics['within1_rank_acc']:.4f}")
         print(f"  Within 2 ranks: {metrics['within2_rank_acc']:.4f}")
 
-        # Add ranking columns for summary printing
+        # Add ranking columns for summary printing（这里对所有球队，包括 W/L 缺失的，也给出预测排名）
         test_feat["PRED_RANK"] = test_feat["PRED_SCORE"].rank(method="min", ascending=False).astype(int)
         test_feat["TRUE_RANK"] = test_feat["WIN_PCT"].rank(method="min", ascending=False).astype(int)
         test_feat["RANK_DIFF"] = test_feat["PRED_RANK"] - test_feat["TRUE_RANK"]
@@ -757,19 +779,45 @@ def analyze_history(history):
               f"Within1={row['test_within1']:.3f} "
               f"Overall={row['test_overall']:.3f}")
 
+    # 把整个搜索历史存成 CSV，方便论文画表/画图
+    results_dir = "search_results"
+    os.makedirs(results_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_path = os.path.join(results_dir, f"model_search_history_{timestamp}.csv")
+    history_df.to_csv(csv_path, index=False, encoding="utf-8")
+    print(f"\nFull model search history saved to: {csv_path}")
+
 
 # ========== Main entry point ==========
 if __name__ == "__main__":
     # Run the auto-optimization routine
     best_config, history = auto_optimize()
 
-    # Analyze search history
+    # Analyze search history (and save CSV)
     analyze_history(history)
 
     if best_config:
         # Run detailed predictions with the best configuration
         detailed_predictions_with_best(best_config)
 
-        # Save best configuration info
+        # Save best configuration info in a JSON file (for reproducibility in paper)
         config_dir = "best_config"
         os.makedirs(config_dir, exist_ok=True)
+
+        best_summary = {
+            "iteration": best_config["iteration"],
+            "feature_method": best_config["feature_method"]["name"],
+            "model_type": best_config["model_config"]["type"],
+            "model_params": best_config["model_config"]["config"],
+            "preprocessor": best_config["preprocessor_config"]["type"],
+            "feature_cols": best_config["feature_cols"],
+            "avg_exact": best_config["avg_exact"],
+            "avg_within1": best_config["avg_within1"],
+            "avg_overall": best_config["avg_overall"],
+            "holdout_seasons": HOLDOUT_SEASONS,
+        }
+
+        best_path = os.path.join(config_dir, "best_config_summary.json")
+        with open(best_path, "w", encoding="utf-8") as f:
+            json.dump(best_summary, f, indent=2)
+        print(f"\nBest config summary saved to: {best_path}")
