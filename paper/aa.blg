@@ -5,23 +5,10 @@ Reallocating 'name_of_file' (item size: 1) to 3 items.
 The style file: aa.bst
 Reallocating 'name_of_file' (item size: 1) to 5 items.
 Database file #1: refs.bib
-Warning--I didn't find a database entry for "baker"
-Warning--I didn't find a database entry for "zheng"
-Warning--I didn't find a database entry for "mizuno"
-Warning--I didn't find a database entry for "balluch"
-Warning--I didn't find a database entry for "cox"
-Warning--I didn't find a database entry for "cox69"
-Warning--I didn't find a database entry for "tscharnuter"
-Warning--I didn't find a database entry for "terlevich"
-Warning--I didn't find a database entry for "yorke80a"
 Reallocating 'wiz_functions' (item size: 4) to 6000 items.
-"\" can't start a style-file command---line 1696 of file aa.bst
- : 
- : \bibliographystyle{aa}
-(Error may have been on previous line)
 You've used 5 entries,
             3039 wiz_defined-function locations,
-            699 strings with 5477 characters,
+            690 strings with 5418 characters,
 and the built_in function-call counts, 1762 in all, are:
 = -- 154
 > -- 86
@@ -60,4 +47,3 @@ warning$ -- 0
 while$ -- 16
 width$ -- 0
 write$ -- 54
-(There was 1 error message)
