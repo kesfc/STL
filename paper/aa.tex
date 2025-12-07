@@ -39,9 +39,8 @@
 % if you use custom commands in your title,
 % ensure to check your title when submitting!
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   \title{Astronomy \& Astrophysics \LaTeX\ template}
-
-   \subtitle{Subtitle}
+\title{Predicting NBA Team Performance: \\
+From Historical Standings to Player-level Forecasts}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Please separate each author with the \and command
@@ -52,17 +51,20 @@
 % ORCIDs included here will be removed.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-   \author{Weihao Li\inst{1}\fnmsep\thanks{Corresponding author: support@nestor-edp.org}
-        \and F. Déliat\inst{1}\fnmsep\thanks{NASA fellow (shows the usage of elements in the author field)}
-        \and C. Brassac\inst{1}
-        \and C. Estievenart\inst{1}
-        \and L. Guérard\inst{1}
-        }
+   \author{
+    Weihao Li\inst{1}\fnmsep\thanks{Corresponding author: wli@u.northwestern.edu}
+    \and Shuhao Gao\inst{1}
+    \and C. Brassac\inst{1}
+    \and C. Estievenart\inst{1}
+}
 
-   \institute{McCormick School of Engineering, Northwestern University
-   \and FSTT, 90000, Tanger, Morocco}
+\institute{
+    McCormick School of Engineering, Northwestern University \\
+    \email{\{author1, shuhaogao2027, author3, author4\}@u.northwestern.edu}
+}
 
-   \date{Received September 30, 20XX}
+\date{Received December 8, 2025}
+
 
 % \abstract{}{}{}{}{}
 % 5 {} token are mandatory
@@ -92,7 +94,43 @@ explicit the general conclusions that can be drawn from the paper.}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
-\lipsum[1]
+
+In this project, we study how well different approaches can predict NBA team performance. Our goal is straightforward: given past data, can we forecast how many games each team will win in a future season? To explore this question, we compare two models that rely on fundamentally different sources of information.
+
+The first model is a simple team-level baseline that uses only historical standings. For any pair of seasons within the past twenty years, we examine how a team's previous win total relates to its win total in another season. This provides a direct, standings-based method for predicting future performance without considering player-level factors.
+
+The second model takes a player-centered perspective. We collect long-term statistics for both retired and still-active NBA players and train a model to learn how player performance tends to evolve over time. Using these learned patterns, we predict next-season box-score statistics for current active players and then aggregate the projected player output to estimate each team’s future win total.
+
+By comparing these two approaches, we aim to understand when a simple
+standings-based baseline is sufficient and when a more detailed, player-based forecasting pipeline provides an advantage, particularly in seasons affected by significant roster changes.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Prior Literature}
+
+\subsection{Team-level rating and expectation models}
+
+A large body of work in sports analytics has focused on predicting team
+performance using aggregate team-level statistics. One influential family of models is the \emph{Pythagorean expectation}, which estimates a team's theoretical winning percentage from points scored and points allowed via a power-law relationship. Originally proposed for baseball and later adapted to basketball, this idea underlies many simple baselines that relate scoring margins to wins and losses \citep[see, e.g.,][]{oliver2004basketball,sarlis2020sports}.
+These models provide strong, easy-to-interpret benchmarks but depend solely on aggregate scoring margins and do not incorporate information about individual players.
+
+Another common approach is to model team strength with rating systems inspired by Elo. In basketball applications, Elo-style ratings are updated after each game based on the result, home-court advantage, and the margin of victory, and then used to forecast future game and series outcomes. Public-facing systems such as FiveThirtyEight's NBA model illustrate how dynamic ratings can track changes in team strength over a season and provide reasonably accurate probabilistic predictions for both games and playoff series \citep{silver2015elo}. Together, Pythagorean and Elo-style systems represent static or quasi-static team-level baselines that are closely related to our first model, which relies on historical team wins and standings. However,
+because these methods operate on aggregate team outcomes, they are inherently limited in their ability to anticipate abrupt changes in performance driven by roster turnover or player development.
+
+\subsection{Machine learning for NBA game and season prediction}
+
+Beyond analytic formulas and rating systems, many studies have applied machine learning to predict basketball results using team-level features. Early work by \citet{loeffelholz2009nba} used neural networks to predict single-game NBA outcomes from box-score statistics and contextual variables, demonstrating that nonlinear models can capture interactions between basic team statistics. More recent surveys review a wide range of approaches, including logistic regression, support vector machines, tree-based ensembles, and deep neural networks, and typically find that machine-learning models outperform simpler statistical baselines when sufficient historical data are available \citep{sarlis2020sports}.
+
+Researchers have also moved from game-level prediction to season-level tasks, such as forecasting a team's final win total or playoff qualification. For example, \citet{yang2015nba} regress regular-season wins on team-level and aggregated player statistics to study which factors are most predictive of team success. These season-level models again treat each team as the unit of analysis and usually rely on summary statistics from the current or previous season.
+
+\subsection{Player-level prediction and its link to team performance}
+
+Complementary to team-level approaches, a growing literature studies player evaluation and performance prediction using detailed box-score and tracking data. \citet{sarlis2020sports} review many of these methods, including regression-based models for player efficiency metrics, clustering techniques for grouping players with similar playing styles, and rating systems that quantify individual contribution to team success. In practice, coaches and analysts often combine such player-level models with domain knowledge to support decisions about rotations, matchups, and roster construction.
+
+Some work, including \citet{yang2015nba}, aggregates player statistics into team-level features to predict season outcomes, effectively creating a simple player-to-team pipeline. However, existing player-focused models typically train and evaluate on overlapping time periods for the same set of players, and they rarely combine long-run player evolution with explicit team-level baselines.
+
+In contrast, our project is designed to learn generic player evolution patterns from a historical cohort that includes both retired and still-active players, and then apply these patterns to predict the next-season performance of currently active players. We subsequently aggregate predicted player statistics to the team level and compare the resulting win forecasts to those from a simple standings-based baseline over roughly two decades of NBA data. This setup allows us to evaluate how a player-based forecasting pipeline and a standings-based model perform side by side, especially in seasons where teams undergo substantial roster changes.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Citations and maths examples}
 
@@ -636,39 +674,9 @@ teger tempus convallis augue. Etiam facilisis.
 % - join the .bib files when you upload your source files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{thebibliography}{}
+\bibliographystyle{aa}
+\bibliography{refs}
 
-  \bibitem[Baker(1966)]{baker} Baker, N. 1966,
-      in Stellar Evolution,
-      ed.\ R. F. Stein,\& A. G. W. Cameron
-      (Plenum, New York) 333
-
-   \bibitem[Balluch(1988)]{balluch} Balluch, M. 1988,
-      A\&A, 200, 58
-
-   \bibitem[Cox(1980)]{cox} Cox, J. P. 1980,
-      Theory of Stellar Pulsation
-      (Princeton University Press, Princeton) 165
-
-   \bibitem[Cox(1969)]{cox69} Cox, A. N.,\& Stewart, J. N. 1969,
-      Academia Nauk, Scientific Information 15, 1
-
-   \bibitem[Mizuno(1980)]{mizuno} Mizuno H. 1980,
-      Prog. Theor. Phys., 64, 544
-   
-   \bibitem[Tscharnuter(1987)]{tscharnuter} Tscharnuter W. M. 1987,
-      A\&A, 188, 55
-  
-   \bibitem[Terlevich(1992)]{terlevich} Terlevich, R. 1992, in ASP Conf. Ser. 31,
-      Relationships between Active Galactic Nuclei and Starburst Galaxies,
-      ed. A. V. Filippenko, 13
-
-   \bibitem[Yorke(1980a)]{yorke80a} Yorke, H. W. 1980a,
-      A\&A, 86, 286
-
-   \bibitem[Zheng(1997)]{zheng} Zheng, W., Davidsen, A. F., Tytler, D. \& Kriss, G. A.
-      1997, preprint
-\end{thebibliography}
 
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
