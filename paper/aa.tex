@@ -39,11 +39,7 @@ From Historical Standings to Player-level Forecasts}
 % ABSTRACT
 %-----------------------------------------------------------------
 \abstract
-{In recent years, publicly available NBA play-by-play and box-score data have made it possible to build increasingly detailed models of team performance. At the same time, many forecasting systems still rely on simple team-level summaries such as past wins or point differential.}
-{We aim to compare a simple standings-based baseline with a player-centric forecasting pipeline for predicting future regular-season wins at the team level.}
-{We construct two models. The first directly regresses future team wins on historical win totals over the past two decades. The second learns generic player evolution patterns from a long-horizon panel of both retired and active players, uses these patterns to predict next-season box-score statistics for active players, and aggregates player-level projections into team-level features.}
-{Across held-out seasons, the player-based pipeline improves mean absolute error relative to the standings baseline, especially for teams undergoing large off-season roster changes. For more stable teams, historical standings are surprisingly competitive and sometimes match the player-based forecasts.}
-{Our results suggest that simple team-level baselines remain strong when rosters are stable, but player-level modeling adds value in high-turnover regimes and provides a more interpretable connection between roster moves and expected team performance.}
+{In recent years, publicly available NBA play-by-play and box-score data have made it possible to build increasingly detailed models of team performance. At the same time, many forecasting systems still rely on simple team-level summaries such as past wins or point differential. We aim to compare a simple standings-based baseline with a player-centric forecasting pipeline for predicting future regular-season wins at the team level. We construct two models. The first directly regresses future team wins on historical win totals over the past two decades. The second learns generic player evolution patterns from a long-horizon panel of both retired and active players, uses these patterns to predict next-season box-score statistics for active players, and aggregates player-level projections into team-level features. Across held-out seasons, the player-based pipeline improves mean absolute error relative to the standings baseline, especially for teams undergoing large off-season roster changes. For more stable teams, historical standings are surprisingly competitive and sometimes match the player-based forecasts. Our results suggest that simple team-level baselines remain strong when rosters are stable, but player-level modeling adds value in high-turnover regimes and provides a more interpretable connection between roster moves and expected team performance.}
 
 \keywords{basketball --
           sports analytics --
@@ -70,8 +66,7 @@ standings-based baseline is sufficient and when a more detailed, player-based fo
 
 \subsection{Team-level rating and expectation models}
 
-A large body of work in sports analytics has focused on predicting team
-performance using aggregate team-level statistics. One influential family
+A large body of work in sports analytics has focused on predicting team performance using aggregate team-level statistics. One influential family
 of models is the \emph{Pythagorean expectation}, which estimates a team's
 theoretical winning percentage from points scored and points allowed via
 a power-law relationship. Originally proposed for baseball and later
