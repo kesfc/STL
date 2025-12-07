@@ -149,16 +149,360 @@ perform side by side, especially in seasons where teams undergo
 substantial roster changes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Example notation and basic formulas}
+\section{Project Setup: Notations and Formulas (Unfinished)}
 
-% ...（这一节、“Figures examples”、“Tables examples” 等你原来的内容不变）...
+% ...（“Figures examples”、“Tables examples” ）...
+\label{sec:notation}
+
+We briefly formalize the forecasting problem and introduce notation that
+we use in the remainder of the paper.
+
+We index seasons by $t \in \{1,\dots,T\}$ and teams by
+$i \in \{1,\dots,N_t\}$, allowing the set of teams to change
+slightly over time due to expansion or relocation. Let
+$y_{i,t} \in \{0,\dots,32\}$ denote the number of regular-season
+wins for team $i$ in season $t$, and let
+$\mathbf{x}_{i,t} \in \mathbb{R}^{d}$ denote a vector of team-level
+features available before the season starts. The forecasting task is: given information available before the start
+of season $t+1$, predict each team's future win total $y_{i,t+1}$.
+
+\subsection{Standings-based baseline}
+
+The standings-based model assumes that next-season wins depend only on
+recent win totals. The simplest form is an ordinary least squares (OLS)
+regression
+\begin{equation}
+    y_{i,t+1} = \beta_0 + \beta_1 y_{i,t} + \varepsilon_{i,t+1},
+    \label{eq:standings-1y}
+\end{equation}
+where $\varepsilon_{i,t+1}$ is zero-mean noise. 
+
+\subsection{Team and Player model}
+
+\paragraph{Step 1: Player Model.} 
+We adopt a regularized linear model of the form
+\begin{equation}
+    \widehat{\mathbf{z}}_{j,t+1}
+    = \mathbf{W}
+      \begin{bmatrix}
+        \mathbf{z}_{j,t} \\
+        \mathbf{z}_{j,t-1} \\
+        \Delta \mathbf{z}_{j,t}
+      \end{bmatrix}
+    + \mathbf{b},
+    \label{eq:player-evol}
+\end{equation}
+
+\paragraph{Step 2: Player to Team Model.}
+\begin{equation}
+    \widehat{\mathbf{x}}^{\text{player}}_{i,t+1}
+    =
+    \frac{\sum_{j \in \mathcal{P}_{i,t+1}}
+          \widehat{m}_{j,t+1} \,
+          \widehat{\mathbf{z}}_{j,t+1}}
+         {\sum_{j \in \mathcal{P}_{i,t+1}} \widehat{m}_{j,t+1}}.
+    \label{eq:agg-player}
+\end{equation}
+
+\begin{equation}
+    y_{i,t+1}
+    = \gamma_0 +
+      \boldsymbol{\gamma}_1^\top \widehat{\mathbf{x}}^{\text{player}}_{i,t+1}
+      + \gamma_2 y_{i,t}
+      + \eta_{i,t+1}.
+    \label{eq:team-from-player}
+\end{equation}
+The resulting two-stage pipeline captures generic player evolution
+patterns while preserving a direct link from roster composition to
+team-level forecasts.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Project description and design process(Unfinished)}
+\label{sec:project}
+
+This section describes our data, modeling choices, and the iterative
+design process that led to our final pipeline.
+
+\subsection{Data sources and preprocessing}
+
+We rely on publicly available NBA box-score and standings data covering
+approximately the past twenty regular seasons. For each season, we
+extract:
+
+\begin{itemize}
+    \item \textbf{Team-level data:} wins, losses, point differential,
+          offensive and defensive rating where available, and conference.
+    \item \textbf{Player-level data:} per-game box-score statistics
+          (points, rebounds, assists, steals, blocks, turnovers, personal
+          fouls, three-pointers made and attempted, free-throws made and
+          attempted), minutes played, and age.
+    \item \textbf{Player-team mapping:} mapping from
+          players to teams by season, and indicators for major roster
+          changes (e.g., a team acquiring or losing a high-usage player).
+\end{itemize}
+
+We standardize statistics to a per-match basis where appropriate and handle missing values via simple imputation rules
+(e.g., treating missing three-point attempts as zero for eras before the
+three-point line, or dropping seasons with incomplete data). Players
+below a minutes-played threshold are treated as replacement-level and
+shrunk toward positional means.
+
+\subsection{Model variants}
+
+We consider several variants of the two core models.
+
+\paragraph{Standings baseline variants.}
+We evaluate:
+\begin{enumerate}
+    \item A  ``past years wins'' model using Eq.~\eqref{eq:standings-1y}.
+    \item A multi-year regression using Eq.~\eqref{eq:player-evol}.
+\end{enumerate}
+These models are intentionally simple and interpretable, mirroring the
+kind of baselines that fans and analysts often use in informal
+discussions.
+
+\paragraph{Player-based pipeline variants.}
+On the player side, we explore:
+\begin{enumerate}
+    \item A linear evolution model as in Eq.~\eqref{eq:player-evol}.
+    \item A regularized variant with position-specific parameters,
+          allowing guards, wings, and bigs to follow different
+          developmental trajectories.
+    \item A baseline that skips the evolution step and directly uses
+          last-season player statistics in Eq.~\eqref{eq:agg-player},
+          effectively assuming no change in player performance.
+\end{enumerate}
+At the team level, we compare a model that uses only
+$\widehat{\mathbf{x}}^{\text{player}}_{i,t+1}$ to one that augments
+these features with the previous season's team wins $y_{i,t}$.
+
+\subsection{Design process}
+
+We approached the project as an iterative design problem with three
+main phases.
+
+\paragraph{Phase 1: Model selection.}
+We began by prototyping several candidate baselines, including
+Pythagorean expectation, Elo-style ratings, and the simple standings
+regressions in Eqs.~\eqref{eq:standings-1y}-~\eqref{eq:player-evol}.
+Preliminary experiments and informal feedback from classmates suggested
+that the ``last year wins'' baseline maintains a good balance between
+simplicity and surprisingly strong performance. This motivated us to use
+it as a primary comparison point.
+
+\paragraph{Phase 2: Player-based model.}
+We next experimented with alternative ways to link player trajectories
+to team outcomes. Early versions attempted to directly map concatenated
+player stats to wins, but these models were difficult to interpret and
+prone to overfitting. The two-stage pipeline in
+Eqs.~\eqref{eq:player-evol}--\eqref{eq:team-from-player} emerged as a
+compromise between flexibility and interpretability.
+
+\paragraph{Phase 3: Feature selection and regularization.}
+Then, we iterated on feature sets and regularization strength using
+held-out seasons as a validation set. 
+
+\paragraph{Phase 4: Player to Team aggregate analysis.}
+Finally, we mapped from player data to team to see if the prediciton accuracy remains high.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Evaluation, user testing, and iteration}
+\label{sec:testing}
+
+Although our project does not have ``end users'' in the sense of a
+deployed app, we still treat model evaluation as a form of
+user-centered testing. Our intended users are basketball fans and
+analysts who would like forecasts that are both accurate and
+interpretable.
+
+\subsection{Train--test protocol}
+
+To mimic a realistic forecasting setting, we adopt a rolling-origin
+evaluation scheme. For each target season $t+1$ in a held-out range, we
+train models using only data from seasons up to $t$ and then generate
+out-of-sample predictions for $y_{i,t+1}$ for all teams.
+
+\subsection{Metrics}
+
+We use three main metrics to assess model quality and to guide
+iterations on the design:
+
+\begin{itemize}
+    \item \textbf{Mean absolute error (MAE)} between predicted and
+          actual win totals:
+          \[
+              \text{MAE}
+              = \frac{1}{K}
+                \sum_{(i,t) \in \mathcal{H}}
+                \left| \widehat{y}_{i,t} - y_{i,t} \right|,
+          \]
+    \item \textbf{Root mean squared error (RMSE)}, which penalizes large
+          mistakes more heavily and highlights seasons where a model
+          badly misjudges a team.
+    \item \textbf{Rank correlation} (Spearman's $\rho$) between predicted
+          and actual standings within each conference, which captures how
+          well a model preserves the ordering of teams even if it is off
+          by a few wins.
+\end{itemize}
+
+\subsection{Iterations}
+
+We use these metrics to drive three kinds of iteration:
+
+\paragraph{Feature-level iteration.}
+When MAE and RMSE are high for particular kinds of teams, such as those
+with many young players, we revisit the player features to ensure that
+age and usage are represented explicitly. This helps the evolution model
+better capture typical improvement or decline patterns.
+
+\paragraph{Model-level iteration.}
+We compare the baseline and player-based pipelines season by season. In
+years where the player model underperforms, we inspect failure cases to
+understand whether they arise from injuries, unusual rotations, or
+outlier shooting performance. Based on these analyses, we adjust
+regularization or revert to simpler models for especially noisy
+features.
+
+\paragraph{Interpretability checks with target users.}
+Finally, we conducted informal ``user tests'' with classmates who
+identify as NBA fans. We showed them
+side-by-side visualizations of forecasts from the two models and asked
+which explanations they found more intuitive. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Findings}
+\label{sec:findings}
+
+We summarize the main empirical findings from our comparison of the
+standings baseline and the player-based model.
+
+\subsection{Overall predictive performance}
+
+Across seasons, the player-based model achieves lower MAE
+and RMSE than the baseline model on average. All models achieved over $60\%$ accuracy.
+
+\subsection{Interpretability and explanatory power}
+
+From a qualitative perspective, the player-based model gives richer
+explanations. When the model projects a team to improve, we can trace
+that improvement back to specific players. Likewise, when it expects regression, we can point
+to declining aging curves or the loss of particular player's contribution.
+
+In contrast, the standings baseline  model can only say that a team is expected
+to win roughly as many games as last year.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Discussion}
+\label{sec:discussion}
+
+Our findings highlight both the strength and the limitations of simple
+team-level model.
+
+On the one hand, historical standings are surprisingly informative. A
+large fraction of the variance in next-season wins can be explained by
+past-years wins, reflecting the reality that many teams change
+relatively slowly. For fans or analysts who need a quick back-of-the-envelope
+forecast, such model is a good way to know the general trend of a team.
+
+On the other hand, the player-based model gives two key benefits:
+
+\begin{enumerate}
+    \item \textbf{Better handling of structural change.} When a team's players
+          change substantially, the past win total of the \emph{team
+          name} is less informative than the projected contributions of
+          the new team. Our player-based model captures this by
+          explicitly modeling individual contribution and aggregating
+          them into team-level expectations.
+    \item \textbf{Better narratives and interpretability.} Modern sports media and fan
+          communities are not satisfied with current rating and predictions; they want
+          to understand how and why a team is expected to rise or fall.
+          By producing forecasts in predicted box-score contributions,
+          our model supports narratives such as ``this team is
+          expected to improve because its purchase of a super star are expected to
+          become more efficient scorers.''
+\end{enumerate}
+
+From a design perspective, the project also illustrates how analytics
+systems can balance simplicity and transparency. A purely black-box
+model might achieve slightly better raw accuracy but would be difficult
+to explain to non-technical users. Conversely, a naive baseline is easy
+to understand but may fail precisely in the situations that most excite
+fans. Our two-model comparison
+helps clarify when additional complexity buys value and when it does
+not.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Limitations and future work}
+\label{sec:limitations}
+
+Our study has several limitations that should be kept in mind when
+interpreting the results.
+
+\subsection{Data and modeling assumptions}
+
+First, we rely primarily on traditional box-score data and simple
+roster metadata. We do not incorporate richer tracking information and play-level detailed statistics. As a result, our player evolution model may miss
+important aspects of defensive impact, spacing, and off-ball value.
+
+Second, our evolution model assumes relatively smooth aging curves and
+uses linear dynamics. In reality, player trajectories can be
+nonlinear and injury-prone, and they can be strongly influenced by
+changes in role, coaching, or offensive scheme. Our simple model
+cannot capture all of these information.
+
+\subsection{Evaluation constraints}
+
+On the evaluation side, we are limited by the relatively small number
+of independent seasons. Even when we adopt cross validation, there are only so
+many non-overlapping train--test splits available. This makes it
+difficult to obtain very tight estimates of performance differences
+between models.
+
+In addition, our informal ``user tests'' with classmates are not a
+formal user study in the HCI sense. They involve a small, convenience
+sample of basketball fans, and feedback is skewed rather than
+systematically quantified.
+
+\subsection{Directions for future work}
+
+These limitations suggest several directions for future work:
+
+\begin{itemize}
+    \item Incorporating richer, opponent-side player impact metrics into the evolution
+          model.
+    \item Exploring nonlinear or hierarchical models for player
+          trajectories, such as Gaussian processes or neural networks,
+          while maintaining interpretability through careful feature
+          design.
+    \item Conducting a more systematic user study with sports analysts
+          and fans to evaluate how different model explanations affect
+          trust nd willingness to use forecasts in
+          decision-making contexts.
+\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusions}
+\label{sec:conclusion}
 
-Lorem ipsum dolor sit amet, consectetuer adipiscing elit. In hac
-habitasse platea dictumst. Integer tempus convallis augue. Etiam
-facilisis.
+We set out to answer a simple question: when is a model ``good enough'' for predicting NBA team performance, and when
+is it worth investing in a more complex, player-centric model?
+
+Our analysis suggests three main takeaways. First, historical standings
+provide a strong and surprisingly robust prediction, especially for teams
+with stable rosters. Second, when rosters change significantly, a
+player-based pipeline that models individual evolution and aggregates
+projected contributions can provide meaningful improvements in accuracy
+and much richer explanations for the team's performance. Third, the choice between models should
+depend on both the structure of the forecasting problem and the needs
+of the intended users: those who value transparency and narrative may
+prefer player-based model.
+
+More broadly, our project illustrates how sports analytics tools can be
+designed to balance simplicity, interpretability, and responsiveness to
+change. By explicitly comparing team-level and player-level views of
+the same forecasting task, we highlight the trade-offs that practitioners
+confront when building models for real-world sports decision-making.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{acknowledgements}
