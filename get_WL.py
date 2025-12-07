@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import time
 
+# Mapping of full team names (historical and current) to short abbreviations
 TEAM_ABBR = {
     # ---- Current 30 teams ----
     "Atlanta Hawks": "ATL",
@@ -40,7 +41,7 @@ TEAM_ABBR = {
     "Baltimore Bullets (1947-1955)": "BLB",  # original Bullets, folded in 1954-55
     "Chicago Stags": "CHS",
     "Cleveland Rebels": "CLR",
-    "Denver Nuggets (1949-1950)": "DNV",     # original Nuggets
+    "Denver Nuggets (1949-1950)": "DNV",  # original Nuggets
     "Detroit Falcons": "DTF",
     "Indianapolis Jets": "INJ",
     "Indianapolis Olympians": "INO",
@@ -77,7 +78,7 @@ TEAM_ABBR = {
     # Bullets / Wizards franchise
     "Chicago Packers": "CHP",
     "Chicago Zephyrs": "CHP",
-    "Baltimore Bullets": "BAL",          # 1963–1973 Bullets (Wizards lineage)
+    "Baltimore Bullets": "BAL",  # 1963–1973 Bullets (Wizards lineage)
     "Capital Bullets": "CAP",
     "Washington Bullets": "WAS",
 
@@ -112,58 +113,79 @@ TEAM_ABBR = {
 
 
 def fetch_season_wl_br(season_end_year: int) -> pd.DataFrame:
+    # Build the Basketball-Reference standings URL for the given season end year
     url = f"https://www.basketball-reference.com/leagues/NBA_{season_end_year}_standings.html"
 
+    # Read all tables from the standings page
     tables = pd.read_html(url)
 
     all_rows = []
 
+    # Iterate over each table to find those containing win/loss columns
     for df in tables:
         if "W" not in df.columns or "L" not in df.columns:
             continue
 
+        # First column is assumed to contain team names
         team_col = df.columns[0]
 
+        # Keep only team name and W/L columns
         tmp = df[[team_col, "W", "L"]].copy()
+        # Clean team names: remove asterisks and surrounding whitespace
         tmp[team_col] = (
             tmp[team_col]
             .astype(str)
             .str.replace("*", "", regex=False)
             .str.strip()
         )
+
+        # Check for team names that are not in the TEAM_ABBR mapping
         unknown = sorted(
             set(tmp[team_col].unique()) - set(TEAM_ABBR.keys())
         )
         if unknown:
             print(f"[warning] {season_end_year} unknown team: {unknown}")
 
+        # Map full team names to abbreviations
         tmp["TEAM_ABBR"] = tmp[team_col].map(TEAM_ABBR)
+        # Drop any rows where abbreviation mapping failed (NaN)
         tmp = tmp[tmp["TEAM_ABBR"].notna()]
 
+        # If no valid rows, skip this table
         if tmp.empty:
             continue
 
+        # Keep a standardized subset of columns
         tmp = tmp[["TEAM_ABBR", "W", "L"]].copy()
         all_rows.append(tmp)
+
+    # Concatenate all valid chunks from all tables
     merged = pd.concat(all_rows, axis=0, ignore_index=True)
+    # Remove duplicate team entries, keeping the first occurrence
     merged = merged.drop_duplicates(subset=["TEAM_ABBR"], keep="first")
 
+    # Convert W/L to integer and rename to WINS/LOSSES for clarity
     merged["WINS"] = merged["W"].astype(int)
     merged["LOSSES"] = merged["L"].astype(int)
+    # Final output: team abbreviation with wins and losses, sorted by team code
     out = merged[["TEAM_ABBR", "WINS", "LOSSES"]].sort_values("TEAM_ABBR").reset_index(drop=True)
     return out
 
 
 if __name__ == "__main__":
-    SEASON_END_YEARS = range(2025, 2027)  
+    # Seasons to fetch (by end year);
+    SEASON_END_YEARS = range(2025, 2027)
 
+    # Output root directory for win–loss CSV files
     out_root = os.path.join("Team_stats", "WL")
-    os.makedirs(out_root, exist_ok=True)  
+    os.makedirs(out_root, exist_ok=True)
 
+    # Loop over each season, fetch W/L data, and save to CSV
     for year in SEASON_END_YEARS:
-        df = fetch_season_wl_br(year)  
+        df = fetch_season_wl_br(year)
         y1 = year - 1
         out_path = os.path.join(out_root, f"{y1}-{year}.csv")
         df.to_csv(out_path, index=False)
         print(f"{year} saved to {out_path}")
+        # Sleep between requests to avoid overwhelming the remote server
         time.sleep(3)
