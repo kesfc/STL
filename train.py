@@ -55,14 +55,12 @@ print(f"Training seasons: {sorted(set(data['Season']) - set(HOLDOUT_SEASONS))}")
 
 # ========== Build full feature matrix once ==========
 def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    在原始数据基础上，一次性构造所有可能用到的 feature 列：
-    - basic_box: 简单 box score
-    - basic_eff: TS%, eFG%, AST/TOV, PREV_WIN_PCT
-    - four_factors: 四因素
-    - rolling_box: 3 年 rolling 平均 (PTS, AST, TRB, STL, BLK)
-    - trend: WIN_PCT 的 rolling / trend
-    """
+    # Generate all candidate features from raw data in one batch:
+    # - basic_box: Simple box score stats
+    # - basic_eff: Efficiency stats (TS%, eFG%, AST/TOV, PREV_WIN_PCT)
+    # - four_factors: The "Four Factors" metrics
+    # - rolling_box: 3-year moving averages (PTS, AST, TRB, STL, BLK)
+    # - trend: Rolling trends for WIN_PCT
     df = df.copy()
     df = df.sort_values(["Team", "SeasonEndYear"])
 
@@ -319,7 +317,7 @@ class PreprocessorFactory:
 # ========== Evaluation function ==========
 def evaluate_predictions(df, true_col="WIN_PCT", pred_col="PRED_SCORE"):
     """
-    排名评估：exact / within 1 / within 2
+    ranking evaluation：exact / within 1 / within 2
     """
     df = df.copy()
     df["TRUE_RANK"] = df[true_col].rank(method="min", ascending=False).astype(int)

@@ -1,346 +1,322 @@
-"""
-Plan 5: Use aggregated player stats to predict team win rate (high-win vs low-win).
-
-- Input:
-    Player_stats/all_stats/player_20years.csv
-    Team_stats/all_seasons_team_summary.csv
-
-- Target:
-    Binary label HIGH_WIN:
-        1 if team WIN_PCT >= 0.55
-        0 otherwise
-
-- Split:
-    Time-based split by season (train on early seasons, test on last 3 seasons).
-"""
-
 import numpy as np
 import pandas as pd
-from pathlib import Path
-
 from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-import xgboost as xgb
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from scipy.stats import pearsonr, spearmanr
 
-# ----------------------------------------------------------------------
-# Config
-# ----------------------------------------------------------------------
-PLAYER_CSV = Path("Player_stats/all_stats/player_20years.csv")
-TEAM_CSV = Path("Team_stats/all_seasons_team_summary.csv")
-
-MIN_MINUTES = 200          # minimum MP for a player-season to be included in aggregation
-WIN_PCT_THRESHOLD = 0.55   # threshold for "high win" team
-TARGET_ACC = 0.80          # target test accuracy
+# Paths to player-level and team-level data
+PLAYER_CSV = "Player_stats/all_stats/player_20years.csv"
+TEAM_CSV = "Team_stats/all_seasons_team_summary.csv"
 
 
-# ----------------------------------------------------------------------
-# Helper functions
-# ----------------------------------------------------------------------
-def build_player_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Create per-player features (per-36 stats, rates) and return updated DataFrame."""
-
-    eps = 1e-6
-    mp = df["MP"].replace(0, np.nan)
-
-    # Per-36 stats
-    df["PTS_per36"] = df["PTS"] / (mp + eps) * 36.0
-    df["AST_per36"] = df["AST"] / (mp + eps) * 36.0
-    df["TRB_per36"] = df["TRB"] / (mp + eps) * 36.0
-    df["STL_per36"] = df["STL"] / (mp + eps) * 36.0
-    df["BLK_per36"] = df["BLK"] / (mp + eps) * 36.0
-    df["TOV_per36"] = df["TOV"] / (mp + eps) * 36.0
-
-    df["FGA_per36"] = df["FGA"] / (mp + eps) * 36.0
-    df["FTA_per36"] = df["FTA"] / (mp + eps) * 36.0
-    df["3PA_per36"] = df["3PA"] / (mp + eps) * 36.0
-
-    # Rate features
-    df["ThreePointRate"] = df["3PA"] / (df["FGA"] + eps)          # 3PA / FGA
-    df["FreeThrowRate"] = df["FTA"] / (df["FGA"] + eps)          # FTA / FGA
-    df["AST_TOV_Ratio"] = df["AST"] / (df["TOV"] + eps)
-    df["UsageProxy"] = (df["FGA"] + 0.44 * df["FTA"]) / (mp + eps)  # crude usage proxy
-
-    return df
-
-
-def aggregate_team_from_players(df: pd.DataFrame) -> pd.DataFrame:
+def build_team_level_dataframe():
     """
-    Aggregate player-level stats into team-season level features.
-
-    - Sum counting stats (MP, PTS, etc.).
-    - Average per-36 and rate features.
-    - Count number of players used.
+    Build a team-level dataframe by aggregating player stats
+    and merging them with official team-level statistics.
     """
+    print(f"[INFO] Loading player data from: {PLAYER_CSV}")
+    player_df = pd.read_csv(PLAYER_CSV)
 
-    group_cols = ["Season", "Team"]
+    # Remove "TOT" rows (players who played for multiple teams combined entry)
+    if "Team" in player_df.columns:
+        tot_count = (player_df["Team"] == "TOT").sum()
+        print(f"[INFO] Dropped {tot_count} 'TOT' rows.")
+        player_df = player_df[player_df["Team"] != "TOT"]
 
-    # Columns to sum at team level (counting stats)
+    # Filter out players with too few minutes (unstable contribution)
+    if "MP" not in player_df.columns:
+        raise ValueError("Player CSV must contain 'MP' column.")
+    before_mp = len(player_df)
+    player_df = player_df[player_df["MP"] >= 200]
+    after_mp = len(player_df)
+    print(f"[INFO] Dropped {before_mp - after_mp} rows with MP < 200.")
+    print(f"[INFO] Remaining player-rows: {after_mp}")
+
+    # Derive the season end year if not already present
+    if "SeasonEndYear" not in player_df.columns:
+        if "Season" not in player_df.columns:
+            raise ValueError("Player CSV must contain 'Season' column.")
+        player_df["SeasonEndYear"] = (
+            player_df["Season"].astype(str).str.split("-").str[-1].astype(int)
+        )
+
+    # Keys used to aggregate player rows to team-level per season
+    group_cols = ["Season", "SeasonEndYear", "Team"]
+
+    # Player stats to sum when forming team-level totals
     sum_cols = [
-        "MP", "G", "GS",
+        "G", "GS", "MP",
         "FG", "FGA", "3P", "3PA", "2P", "2PA",
         "FT", "FTA",
         "ORB", "DRB", "TRB",
-        "AST", "STL", "BLK", "TOV", "PF", "PTS",
+        "AST", "STL", "BLK",
+        "TOV", "PF",
+        "PTS", "Trp-Dbl",
     ]
-    sum_cols = [c for c in sum_cols if c in df.columns]
+    # Keep only columns that actually exist
+    sum_cols = [c for c in sum_cols if c in player_df.columns]
 
-    # Columns to average (per-36 and rates)
-    mean_cols = [
-        "PTS_per36", "AST_per36", "TRB_per36", "STL_per36", "BLK_per36",
-        "TOV_per36", "FGA_per36", "FTA_per36", "3PA_per36",
-        "ThreePointRate", "FreeThrowRate", "AST_TOV_Ratio", "UsageProxy",
-        "Age", "FG%", "3P%", "2P%", "eFG%", "FT%",
-    ]
-    mean_cols = [c for c in mean_cols if c in df.columns]
+    # Define aggregation rules: sum for stats, mean for Age (if available)
+    agg_dict = {col: "sum" for col in sum_cols}
+    if "Age" in player_df.columns:
+        agg_dict["Age"] = "mean"
 
-    agg_dict = {}
-
-    for c in sum_cols:
-        agg_dict[c] = "sum"
-    for c in mean_cols:
-        agg_dict[c] = "mean"
-
-    # Also keep number of unique players as a feature
-    agg_dict["Player"] = "nunique"
-
-    team_feat = (
-        df.groupby(group_cols)
+    # Aggregate player stats into team-season-level rows
+    team_from_players = (
+        player_df
+        .groupby(group_cols)
         .agg(agg_dict)
         .reset_index()
-        .rename(columns={"Player": "NumPlayers"})
     )
 
-    return team_feat
+    team_rows = len(team_from_players)
+    print(f"[INFO] Team-level rows from players: {team_rows}")
+
+    # Small epsilon to avoid division by zero in percentage calculations
+    eps = 1e-8
+
+    # Compute team-level shooting and efficiency metrics from aggregated player stats
+    if {"FG", "FGA"}.issubset(team_from_players.columns):
+        team_from_players["FG_PCT_P"] = team_from_players["FG"] / (team_from_players["FGA"] + eps)
+    if {"3P", "3PA"}.issubset(team_from_players.columns):
+        team_from_players["TP_PCT_P"] = team_from_players["3P"] / (team_from_players["3PA"] + eps)
+    if {"2P", "2PA"}.issubset(team_from_players.columns):
+        team_from_players["TP2_PCT_P"] = team_from_players["2P"] / (team_from_players["2PA"] + eps)
+    if {"FT", "FTA"}.issubset(team_from_players.columns):
+        team_from_players["FT_PCT_P"] = team_from_players["FT"] / (team_from_players["FTA"] + eps)
+    if {"PTS", "FGA", "FTA"}.issubset(team_from_players.columns):
+        # True shooting percentage based on player-aggregated totals
+        team_from_players["TS_PCT_P"] = team_from_players["PTS"] / (
+            2 * (team_from_players["FGA"] + 0.44 * team_from_players["FTA"] + eps)
+        )
+    if {"FG", "3P", "FGA"}.issubset(team_from_players.columns):
+        # Effective field goal percentage from player-aggregated stats
+        team_from_players["EFG_PCT_P"] = (
+            team_from_players["FG"] + 0.5 * team_from_players["3P"]
+        ) / (team_from_players["FGA"] + eps)
+    if {"AST", "TOV"}.issubset(team_from_players.columns):
+        # Assist-to-turnover ratio from player-aggregated stats
+        team_from_players["AST_TO_RATIO_P"] = (
+            team_from_players["AST"] / (team_from_players["TOV"] + eps)
+        )
+
+    print(f"[INFO] Loading team data from: {TEAM_CSV}")
+    team_df = pd.read_csv(TEAM_CSV)
+
+    # Derive SeasonEndYear for team data if needed
+    if "SeasonEndYear" not in team_df.columns:
+        if "Season" not in team_df.columns:
+            raise ValueError("Team CSV must contain 'Season' and 'SeasonEndYear' or derivable info.")
+        team_df["SeasonEndYear"] = (
+            team_df["Season"].astype(str).str.split("-").str[-1].astype(int)
+        )
+
+    # Keep only the key team-level columns and performance stats
+    keep_team_cols = [
+        "Season", "SeasonEndYear", "Team",
+        "WINS", "LOSSES",
+        "FG", "FGA", "3P", "3PA", "2P", "2PA",
+        "FT", "FTA",
+        "ORB", "DRB", "TRB",
+        "AST", "STL", "BLK",
+        "TOV", "PF", "PTS",
+        "FG%", "3P%", "2P%", "FT%", "eFG%",
+    ]
+    keep_team_cols = [c for c in keep_team_cols if c in team_df.columns]
+
+    # Create a smaller team dataframe with only needed columns
+    team_df_small = team_df[keep_team_cols].copy()
+
+    # Prefix team-level numeric/stat columns with "T_" to distinguish them
+    rename_map = {}
+    for c in keep_team_cols:
+        if c in ["Season", "SeasonEndYear", "Team", "WINS", "LOSSES"]:
+            continue
+        rename_map[c] = f"T_{c}"
+
+    team_df_small = team_df_small.rename(columns=rename_map)
+
+    # Merge player-aggregated team features with official team stats
+    merged = pd.merge(
+        team_from_players,
+        team_df_small,
+        on=["Season", "SeasonEndYear", "Team"],
+        how="inner",
+    )
+
+    print(f"[INFO] Merged team-feature rows: {len(merged)}")
+
+    # Compute team win percentage and previous season's win percentage
+    merged["WIN_PCT"] = merged["WINS"] / (merged["WINS"] + merged["LOSSES"])
+    merged = merged.sort_values(["Team", "SeasonEndYear"])
+    merged["PREV_WIN_PCT"] = merged.groupby("Team")["WIN_PCT"].shift(1)
+
+    return merged
 
 
-# ----------------------------------------------------------------------
-# Load player data and build team-level features
-# ----------------------------------------------------------------------
-print(f"[INFO] Loading player data from: {PLAYER_CSV}")
-player_df = pd.read_csv(PLAYER_CSV)
+def create_trend_features(df):
+    """
+    Add win-percentage trend-based features:
+    - current season win pct
+    - previous season win pct
+    - rolling 3-year and 5-year averages
+    - short-term trend (change in 3-year rolling average)
+    """
+    df = df.copy()
+    df["WIN_PCT"] = df["WINS"] / (df["WINS"] + df["LOSSES"])
+    df["PREV_WIN_PCT"] = df.groupby("Team")["WIN_PCT"].shift(1)
+    df = df.sort_values(["Team", "SeasonEndYear"])
 
-# Extract SeasonStart year (e.g., "2004-2005" -> 2004) for time-based split later
-player_df["SeasonStart"] = player_df["Season"].str.split("-").str[0].astype(int)
+    # Rolling 3-year average win percentage per team
+    df["WIN_PCT_3Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
+        lambda x: x.rolling(3, min_periods=1).mean()
+    )
+    # Rolling 5-year average win percentage per team
+    df["WIN_PCT_5Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
+        lambda x: x.rolling(5, min_periods=1).mean()
+    )
+    # Trend: change in 3-year rolling mean over time
+    df["WIN_PCT_TREND"] = df.groupby("Team")["WIN_PCT"].transform(
+        lambda x: x.rolling(3, min_periods=1).mean().diff()
+    )
 
-# Remove "TOT" rows (total across multiple teams) because we want per-team contributions
-before_tot = len(player_df)
-player_df = player_df[player_df["Team"] != "TOT"].copy()
-after_tot = len(player_df)
-print(f"[INFO] Dropped {before_tot - after_tot} 'TOT' rows.")
+    # List of trend-based feature columns used for modeling
+    feature_cols = ["PREV_WIN_PCT", "WIN_PCT_3Y_AVG", "WIN_PCT_5Y_AVG", "WIN_PCT_TREND"]
+    return df, feature_cols
 
-# Filter players with low minutes (to reduce noise)
-before_mp = len(player_df)
-player_df = player_df[player_df["MP"] >= MIN_MINUTES].copy()
-after_mp = len(player_df)
-print(f"[INFO] Dropped {before_mp - after_mp} rows with MP < {MIN_MINUTES}.")
-print(f"[INFO] Remaining player-rows: {after_mp}")
 
-# Build per-player features
-player_df = build_player_features(player_df)
+def evaluate_predictions(df, true_col="WIN_PCT", pred_col="PRED_SCORE"):
+    """
+    Evaluate predictions using ranking-based metrics and regression metrics.
+    - Ranking metrics: exact rank match, within 1 or 2 places, combined overall score
+    - Regression metrics: MAE, RMSE, R^2, Pearson r, Spearman rho
+    """
+    df = df.copy()
+    # Rank teams by true and predicted values (higher is better)
+    df = df.sort_values(true_col, ascending=False)
+    df["TRUE_RANK"] = df[true_col].rank(method="min", ascending=False).astype(int)
+    df["PRED_RANK"] = df[pred_col].rank(method="min", ascending=False).astype(int)
+    df["RANK_DIFF"] = df["PRED_RANK"] - df["TRUE_RANK"]
 
-# Aggregate into team-season features
-team_from_players = aggregate_team_from_players(player_df)
-print(f"[INFO] Team-level rows from players: {team_from_players.shape[0]}")
+    # Accuracy metrics based on rank differences
+    exact_acc = (df["PRED_RANK"] == df["TRUE_RANK"]).mean()
+    within1_acc = (df["RANK_DIFF"].abs() <= 1).mean()
+    within2_acc = (df["RANK_DIFF"].abs() <= 2).mean()
+    # Weighted overall score emphasizing within-1 accuracy
+    overall_score = within1_acc * 0.7 + exact_acc * 0.3
 
-# Also keep SeasonStart for splitting (use first year of Season string)
-team_from_players["SeasonStart"] = team_from_players["Season"].str.split("-").str[0].astype(int)
+    # Extract arrays for regression-style metrics
+    y_true = df[true_col].values
+    y_pred = df[pred_col].values
 
-# ----------------------------------------------------------------------
-# Load team labels (win percentage) and join
-# ----------------------------------------------------------------------
-print(f"[INFO] Loading team data from: {TEAM_CSV}")
-team_df = pd.read_csv(TEAM_CSV)
+    # Standard regression metrics
+    mae = mean_absolute_error(y_true, y_pred)
+    mse = mean_squared_error(y_true, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_true, y_pred)
+    # Correlation metrics
+    pearson_r, _ = pearsonr(y_true, y_pred)
+    spearman_r, _ = spearmanr(y_true, y_pred)
 
-# Compute win percentage from WINS / LOSSES
-team_df["WIN_PCT"] = team_df["WINS"] / (team_df["WINS"] + team_df["LOSSES"])
-team_df["SeasonStart"] = team_df["Season"].str.split("-").str[0].astype(int)
+    return {
+        "exact_rank_acc": exact_acc,
+        "within1_rank_acc": within1_acc,
+        "within2_rank_acc": within2_acc,
+        "overall_score": overall_score,
+        "mae": mae,
+        "rmse": rmse,
+        "r2": r2,
+        "pearson_r": pearson_r,
+        "spearman_r": spearman_r,
+    }
 
-# We only need Season, Team, WINS, LOSSES, WIN_PCT
-team_labels = team_df[["Season", "Team", "SeasonStart", "WINS", "LOSSES", "WIN_PCT"]]
 
-# Inner join: only seasons/teams that exist in both player aggregation and team stats
-merged = pd.merge(
-    team_from_players,
-    team_labels,
-    on=["Season", "Team", "SeasonStart"],
-    how="inner",
-)
+def main():
+    """
+    Main pipeline:
+    1) Build merged team-level dataset from player and team stats.
+    2) Create win-percentage trend features.
+    3) Train a Random Forest regressor on historical seasons.
+    4) Evaluate predictions on the latest two seasons (holdout).
+    """
+    data = build_team_level_dataframe()
 
-print(f"[INFO] Merged team-feature rows: {merged.shape[0]}")
+    # Inspect numeric columns available in the merged dataset
+    numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+    print(f"[INFO] Number of numeric feature columns (initial merged df): {len(numeric_cols)}")
+    print(f"[INFO] Example numeric columns: {numeric_cols[:10]}")
 
-# Build binary label: high-win vs low-win
-merged["HIGH_WIN"] = (merged["WIN_PCT"] >= WIN_PCT_THRESHOLD).astype(int)
-print(
-    "[INFO] Label distribution (HIGH_WIN):\n",
-    merged["HIGH_WIN"].value_counts(normalize=True).rename("ratio"),
-)
+    # Add trend-based features for modeling
+    full_feat, feature_cols = create_trend_features(data)
 
-# ----------------------------------------------------------------------
-# Train / test split by season (time-based)
-# ----------------------------------------------------------------------
-unique_seasons = sorted(merged["SeasonStart"].unique())
-if len(unique_seasons) <= 4:
-    raise RuntimeError("Not enough seasons for proper train/test split.")
+    # Define holdout seasons as the last two seasons in the data
+    seasons_sorted = sorted(full_feat["Season"].unique())
+    latest_season = seasons_sorted[-1]
+    second_latest_season = seasons_sorted[-2] if len(seasons_sorted) > 1 else latest_season
+    holdout_seasons = [second_latest_season, latest_season]
 
-# Use last 3 seasons as test, the rest as train
-test_seasons = unique_seasons[-3:]
-train_seasons = [s for s in unique_seasons if s not in test_seasons]
+    print(f"[INFO] Holdout seasons: {holdout_seasons}")
+    print(f"[INFO] All seasons: {seasons_sorted}")
 
-train_df = merged[merged["SeasonStart"].isin(train_seasons)].copy()
-test_df = merged[merged["SeasonStart"].isin(test_seasons)].copy()
+    # Training on all seasons except the last two
+    train_feat = full_feat[~full_feat["Season"].isin(holdout_seasons)].copy()
+    # Test on the last two seasons
+    test_feat_all = full_feat[full_feat["Season"].isin(holdout_seasons)].copy()
 
-print(f"[INFO] Train seasons: {train_seasons}")
-print(f"[INFO] Test seasons:  {test_seasons}")
-print(f"[INFO] Train size: {len(train_df)}, Test size: {len(test_df)}")
+    # Features and target for training
+    X_train = train_feat[feature_cols].values
+    y_train = train_feat["WIN_PCT"].values
 
-# ----------------------------------------------------------------------
-# Build feature matrix X and labels y
-# ----------------------------------------------------------------------
-# Columns to exclude from features
-exclude_cols = {
-    "Season", "Team", "SeasonStart",
-    "WINS", "LOSSES", "WIN_PCT", "HIGH_WIN",
-}
+    # Standardize feature scales for the regression model
+    preprocessor = StandardScaler()
+    X_train_scaled = preprocessor.fit_transform(X_train)
 
-feature_cols = [
-    c for c in merged.columns
-    if c not in exclude_cols and merged[c].dtype != "O"  # exclude non-numeric
-]
-
-print(f"[INFO] Number of numeric feature columns: {len(feature_cols)}")
-print(f"[INFO] Example feature columns: {feature_cols[:10]}")
-
-X_train = train_df[feature_cols].fillna(0.0).values
-y_train = train_df["HIGH_WIN"].values
-
-X_test = test_df[feature_cols].fillna(0.0).values
-y_test = test_df["HIGH_WIN"].values
-
-# Compute positive rate to set scale_pos_weight
-pos_rate = y_train.mean()
-if pos_rate == 0 or pos_rate == 1:
-    scale_pos_weight = 1.0
-else:
-    scale_pos_weight = (1 - pos_rate) / pos_rate
-
-print(f"[INFO] Positive rate in train (HIGH_WIN=1): {pos_rate:.3f}, scale_pos_weight={scale_pos_weight:.2f}")
-
-# ----------------------------------------------------------------------
-# Simple inner validation to choose best of a few configs
-# ----------------------------------------------------------------------
-# Inner split: last 2 train seasons as validation, earlier as inner-train
-inner_seasons = sorted(train_df["SeasonStart"].unique())
-val_seasons = inner_seasons[-2:]
-inner_train_seasons = inner_seasons[:-2]
-
-inner_train_mask = train_df["SeasonStart"].isin(inner_train_seasons)
-val_mask = train_df["SeasonStart"].isin(val_seasons)
-
-X_inner_train = train_df[inner_train_mask][feature_cols].fillna(0.0).values
-y_inner_train = train_df[inner_train_mask]["HIGH_WIN"].values
-
-X_val = train_df[val_mask][feature_cols].fillna(0.0).values
-y_val = train_df[val_mask]["HIGH_WIN"].values
-
-print(f"[INFO] Inner-train size: {X_inner_train.shape[0]}, Val size: {X_val.shape[0]}")
-
-configs = [
-    {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05},
-    {"n_estimators": 400, "max_depth": 3, "learning_rate": 0.05},
-    {"n_estimators": 400, "max_depth": 4, "learning_rate": 0.05},
-    {"n_estimators": 400, "max_depth": 4, "learning_rate": 0.1},
-    {"n_estimators": 600, "max_depth": 4, "learning_rate": 0.05},
-    {"n_estimators": 600, "max_depth": 4, "learning_rate": 0.1},
-]
-
-best_cfg = None
-best_val_acc = -1.0
-
-for cfg in configs:
-    print(f"[INFO] Trying config: {cfg}")
-    model = Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", xgb.XGBClassifier(
-            objective="binary:logistic",
-            n_estimators=cfg["n_estimators"],
-            max_depth=cfg["max_depth"],
-            learning_rate=cfg["learning_rate"],
-            subsample=0.9,
-            colsample_bytree=0.9,
-            reg_lambda=1.0,
-            reg_alpha=0.0,
-            random_state=42,
-            eval_metric="logloss",
-            n_jobs=-1,
-            scale_pos_weight=scale_pos_weight,
-        )),
-    ])
-
-    model.fit(X_inner_train, y_inner_train)
-    y_val_pred = model.predict(X_val)
-    val_acc = accuracy_score(y_val, y_val_pred)
-    print(f"  -> Val accuracy: {val_acc:.4f}")
-
-    if val_acc > best_val_acc:
-        best_val_acc = val_acc
-        best_cfg = cfg
-
-print(f"[INFO] Best config on validation: {best_cfg} (val acc={best_val_acc:.4f})")
-
-# ----------------------------------------------------------------------
-# Train final model on full training data with best config
-# ----------------------------------------------------------------------
-print("[INFO] Training final model on full training data...")
-
-final_model = Pipeline([
-    ("scaler", StandardScaler()),
-    ("clf", xgb.XGBClassifier(
-        objective="binary:logistic",
-        n_estimators=best_cfg["n_estimators"],
-        max_depth=best_cfg["max_depth"],
-        learning_rate=best_cfg["learning_rate"],
-        subsample=0.9,
-        colsample_bytree=0.9,
-        reg_lambda=1.0,
-        reg_alpha=0.0,
+    # Random Forest regressor to predict win percentage
+    model = RandomForestRegressor(
+        n_estimators=100,
+        max_depth=10,
         random_state=42,
-        eval_metric="logloss",
         n_jobs=-1,
-        scale_pos_weight=scale_pos_weight,
-    )),
-])
+    )
+    model.fit(X_train_scaled, y_train)
 
-final_model.fit(X_train, y_train)
+    print("\n" + "=" * 80)
+    print("DETAILED PREDICTIONS (per holdout season)")
+    print("=" * 80)
 
-# ----------------------------------------------------------------------
-# Evaluate on test set
-# ----------------------------------------------------------------------
-print("\n[INFO] Evaluating on test set...")
+    # Evaluate predictions separately for each holdout season
+    for season in holdout_seasons:
+        print("\n" + "=" * 50)
+        print(f"SEASON: {season}")
+        print("=" * 50)
 
-y_test_pred = final_model.predict(X_test)
-test_acc = accuracy_score(y_test, y_test_pred)
+        season_feat = test_feat_all[test_feat_all["Season"] == season].copy()
+        if season_feat.empty:
+            continue
 
-print(f"\n[RESULT] Test accuracy: {test_acc:.4f}")
+        # Ensure all trend feature columns exist in the season subset
+        for col in feature_cols:
+            if col not in season_feat.columns:
+                season_feat[col] = 0.0
 
-print("\n[RESULT] Classification report (test):")
-print(classification_report(
-    y_test,
-    y_test_pred,
-    target_names=["LowWin", "HighWin"]
-))
+        X_test = season_feat[feature_cols].values
+        X_test_scaled = preprocessor.transform(X_test)
 
-print("[RESULT] Confusion matrix (test):")
-print(confusion_matrix(y_test, y_test_pred))
+        # Predict win percentage for each team in the holdout season
+        pred = model.predict(X_test_scaled)
+        season_feat["PRED_SCORE"] = pred
 
-# Baseline: always predict majority class
-majority_class = int(np.round(merged["HIGH_WIN"].value_counts().idxmax()))
-baseline_acc = accuracy_score(y_test, np.full_like(y_test, majority_class))
-print(f"\n[BASELINE] Always predict '{'HighWin' if majority_class == 1 else 'LowWin'}' "
-      f"accuracy: {baseline_acc:.4f}")
+        # Compute metrics comparing predicted vs true win percentage
+        metrics = evaluate_predictions(season_feat, true_col="WIN_PCT", pred_col="PRED_SCORE")
 
-# Check target
-if test_acc >= TARGET_ACC:
-    print(f"\n[INFO] Target achieved: accuracy >= {TARGET_ACC * 100:.0f}%")
-else:
-    print(f"\n[WARN] Target NOT achieved: accuracy={test_acc:.4f}, target={TARGET_ACC:.2f}")
+        print("\nPerformance Metrics:")
+        print(f"  MAE (WIN_PCT):   {metrics['mae']:.4f}")
+        print(f"  RMSE (WIN_PCT):  {metrics['rmse']:.4f}")
+        print(f"  R^2:             {metrics['r2']:.4f}")
+        print(f"  Pearson r:       {metrics['pearson_r']:.4f}")
+        print(f"  Spearman rho:    {metrics['spearman_r']:.4f}")
+
+
+if __name__ == "__main__":
+    main()
