@@ -2,18 +2,25 @@
 \expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
 
 \bibitem[{{FiveThirtyEight}(2015)}]{silver2015elo}
-{FiveThirtyEight}. 2015, How Our {NBA} Predictions Work, \url{https://fivethirtyeight.com/features/how-our-nba-predictions-work/}, accessed: 2025-12-07
+{FiveThirtyEight}. 2015, How Our {NBA} Predictions Work,
+  \url{https://fivethirtyeight.com/features/how-our-nba-predictions-work/},
+  accessed: 2025-12-07
 
-\bibitem[{Loeffelholz {et~al.}(2009)Loeffelholz, Bednar, \& Bauer}]{loeffelholz2009nba}
-Loeffelholz, B., Bednar, E., \& Bauer, M. 2009, Journal of Quantitative Analysis in Sports, 5
+\bibitem[{Loeffelholz {et~al.}(2009)Loeffelholz, Bednar, \&
+  Bauer}]{loeffelholz2009nba}
+Loeffelholz, B., Bednar, E., \& Bauer, M. 2009, Journal of Quantitative
+  Analysis in Sports, 5
 
 \bibitem[{Oliver(2004)}]{oliver2004basketball}
-Oliver, D. 2004, Basketball on Paper: Rules and Tools for Performance Analysis (Washington, DC: Potomac Books)
+Oliver, D. 2004, Basketball on Paper: Rules and Tools for Performance Analysis
+  (Washington, DC: Potomac Books)
 
 \bibitem[{Sarlis \& Tjortjis(2020)}]{sarlis2020sports}
 Sarlis, P. \& Tjortjis, C. 2020, Information Systems, 93, 101562
 
 \bibitem[{Yang(2015)}]{yang2015nba}
-Yang, J. 2015, Predicting Regular Season Results of {NBA} Teams Based on Regression Analysis of Common Basketball Statistics, UC Berkeley Statistics Project
+Yang, J. 2015, Predicting Regular Season Results of {NBA} Teams Based on
+  Regression Analysis of Common Basketball Statistics, UC Berkeley Statistics
+  Project
 
 \end{thebibliography}

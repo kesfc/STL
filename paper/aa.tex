@@ -12,9 +12,8 @@
 \usepackage{lscape}
 \usepackage{placeins}
 
-% ==== 这里新加：超链接包，放在所有包之后 ====
+% ==== 超链接包 ====
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
-% ==============================================
 
 \begin{document}
 
@@ -144,75 +143,138 @@ perform side by side, especially in seasons where teams undergo
 substantial roster changes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Project Setup: Notations and Formulas (Unfinished)}
-
-% ...（“Figures examples”、“Tables examples” ）...
+\section{Tasks and evaluation}
 \label{sec:notation}
 
-We briefly formalize the forecasting problem and introduce notation that
-we use in the remainder of the paper.
+We study two related prediction tasks: (i) forecasting regular-season
+team rankings from team-level summary statistics, and (ii)
+predicting individual player statistics. Because the main results of
+this paper concern team-level accuracy, we focus on the first task
+here; the player-level task follows the same general protocol but
+uses different feature inputs.
 
-We index seasons by $t \in \{1,\dots,T\}$ and teams by
-$i \in \{1,\dots,N_t\}$, allowing the set of teams to change
-slightly over time due to expansion or relocation. Let
-$y_{i,t} \in \{0,\dots,32\}$ denote the number of regular-season
-wins for team $i$ in season $t$, and let
-$\mathbf{x}_{i,t} \in \mathbb{R}^{d}$ denote a vector of team-level
-features available before the season starts. The forecasting task is: given information available before the start
-of season $t+1$, predict each team's future win total $y_{i,t+1}$.
+\subsection{Team-level ranking prediction}
 
-\subsection{Standings-based baseline}
+For each team $t$ and season $s$, we assemble a feature vector
+$\mathbf{x}_{t,s}$ from season-level box-score summaries and simple
+trend indicators. The target is the realized winning percentage
+\[
+\text{WIN\_PCT}_{t,s}
+=
+\frac{\text{WINS}_{t,s}}
+     {\text{WINS}_{t,s} + \text{LOSSES}_{t,s}}.
+\]
+A regression model $f_\theta$ produces a prediction
+$\hat{y}_{t,s} = f_\theta(\mathbf{x}_{t,s})$, and teams are ranked within
+each season by sorting $\hat{y}_{t,s}$ in descending order.
 
-The standings-based model assumes that next-season wins depend only on
-recent win totals. The simplest form is an ordinary least squares (OLS)
-regression
-\begin{equation}
-    y_{i,t+1} = \beta_0 + \beta_1 y_{i,t} + \varepsilon_{i,t+1},
-    \label{eq:standings-1y}
-\end{equation}
-where $\varepsilon_{i,t+1}$ is zero-mean noise. 
+\paragraph{Data split.}
+We use team–season summaries from the 2004–2005 through
+2024–2025 seasons (630 observations in total). The two most
+recent seasons (2023–2024 and 2024–2025) serve as a held-out
+test set, and all earlier seasons form the training set. All feature
+engineering is performed on the full panel, but model fitting uses
+only the training seasons; performance is reported exclusively on
+the held-out seasons.
 
-\subsection{Team and Player model}
+\paragraph{Evaluation metrics.}
+Because the task is ranking rather than regression, we evaluate
+predictions using three rank-based metrics computed separately
+for each season:
+\[
+\mathrm{ExactAcc}_s =
+\frac{1}{N_s}\sum_t
+\mathbb{1}[\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+=
+\mathrm{RANK}^{\mathrm{true}}_{t,s}],
+\]
+\[
+\mathrm{Within1}_s =
+\frac{1}{N_s}\sum_t
+\mathbb{1}[|\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+-
+\mathrm{RANK}^{\mathrm{true}}_{t,s}|\le 1],
+\]
+\[
+\mathrm{Within2}_s =
+\frac{1}{N_s}\sum_t
+\mathbb{1}[|\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+-
+\mathrm{RANK}^{\mathrm{true}}_{t,s}|\le 2].
+\]
+We report each metric for both held-out seasons and also average them
+for model comparison. Additional details on high-performing model
+configurations are provided in Appendix~\ref{app:model-search}.
+Figure~\ref{fig:rank-scatter} visualizes predicted versus actual rankings
+for the two held-out test seasons.
 
-\paragraph{Step 1: Player Model.} 
-We adopt a regularized linear model of the form
-\begin{equation}
-    \widehat{\mathbf{z}}_{j,t+1}
-    = \mathbf{W}
-      \begin{bmatrix}
-        \mathbf{z}_{j,t} \\
-        \mathbf{z}_{j,t-1} \\
-        \Delta \mathbf{z}_{j,t}
-      \end{bmatrix}
-    + \mathbf{b},
-    \label{eq:player-evol}
-\end{equation}
+% ===================== 两个赛季的排名散点图 =====================
+\begin{figure*}
+\centering
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    % 保存的文件名示例：figs/season_2023_2024_rank_scatter.png
+    \includegraphics[width=\textwidth]{season_2023_2024_rank_scatter}
+    \caption{2023--2024 season.}
+    \label{fig:rank-2324}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    % 保存的文件名示例：figs/season_2024_2025_rank_scatter.png
+    \includegraphics[width=\textwidth]{season_2024_2025_rank_scatter}
+    \caption{2024--2025 season.}
+    \label{fig:rank-2425}
+\end{subfigure}
+\caption{
+Predicted versus actual team rankings for the two held-out seasons.
+Each point corresponds to a single team; the dashed diagonal indicates
+perfect agreement between predicted and true rankings.
+}
+\label{fig:rank-scatter}
+\end{figure*}
+% ==========================================================
 
-\paragraph{Step 2: Player to Team Model.}
-\begin{equation}
-    \widehat{\mathbf{x}}^{\text{player}}_{i,t+1}
-    =
-    \frac{\sum_{j \in \mathcal{P}_{i,t+1}}
-          \widehat{m}_{j,t+1} \,
-          \widehat{\mathbf{z}}_{j,t+1}}
-         {\sum_{j \in \mathcal{P}_{i,t+1}} \widehat{m}_{j,t+1}}.
-    \label{eq:agg-player}
-\end{equation}
+\subsubsection{Feature groups}
 
-\begin{equation}
-    y_{i,t+1}
-    = \gamma_0 +
-      \boldsymbol{\gamma}_1^\top \widehat{\mathbf{x}}^{\text{player}}_{i,t+1}
-      + \gamma_2 y_{i,t}
-      + \eta_{i,t+1}.
-    \label{eq:team-from-player}
-\end{equation}
-The resulting two-stage pipeline captures generic player evolution
-patterns while preserving a direct link from roster composition to
-team-level forecasts.
+To structure the search space, we organize the candidate
+predictors into six groups and randomly sample combinations of
+these groups during model search:
+\begin{itemize}
+  \item \textbf{basic\_box}: core box-score totals (PTS, FGA, FTA, TRB, AST, STL, BLK, TOV, PF),
+  \item \textbf{basic\_eff}: efficiency ratios (TS\_PCT, EFG\_PCT, AST\_TO\_RATIO),
+  \item \textbf{four\_factors}: EFG, turnover, offensive rebounding, and free-throw rate,
+  \item \textbf{rolling\_box}: 3-year rolling averages of key box-score totals,
+  \item \textbf{full\_box}: the full traditional box-score set,
+  \item \textbf{trend}: previous-season win percentage, multi-year rolling averages, and a simple trend term.
+\end{itemize}
+
+\subsubsection{Models and hyperparameter search}
+
+We perform a random search over model families, feature-group
+combinations, and preprocessing strategies. The model families
+include gradient boosting, random forests, LightGBM, XGBoost,
+ridge and lasso regression, support vector regression, $k$-nearest
+neighbors, and a small feed-forward MLP. Tree-based ensembles
+consistently provide the strongest performance.
+
+Each configuration is trained on the 2004–2005 through
+2022–2023 seasons and evaluated on the two held-out seasons.
+We retain all configurations achieving at least $40\%$ exact rank
+accuracy for further examination.
+
+
+The final XGBoost model uses a concrete set of 13 season-level variables,
+listed in Table~\ref{tab:best-features}. These include nine
+box-score totals (PTS, FGA, FTA, TRB, AST, STL, BLK, TOV, PF) and
+four trend-based indicators (previous-season win percentage,
+three- and five-year rolling averages, and a simple trend term).
+This exact feature set corresponds to the model achieving
+$63.3\%$ exact rank accuracy, $78.3\%$ within--1, and
+$91.7\%$ within--2 accuracy across the two held-out seasons.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Project description and design process(Unfinished)}
+\section{Project description and design process (Unfinished)}
 \label{sec:project}
 
 This section describes our data, modeling choices, and the iterative
@@ -279,7 +341,7 @@ main phases.
 \paragraph{Phase 1: Model selection.}
 We began by prototyping several candidate baselines, including
 Pythagorean expectation, Elo-style ratings, and the simple standings
-regressions in Eqs.~\eqref{eq:standings-1y}-~\eqref{eq:player-evol}.
+regressions in Eqs.~\eqref{eq:standings-1y}--\eqref{eq:player-evol}.
 Preliminary experiments and informal feedback from classmates suggested
 that the ``last year wins'' baseline maintains a good balance between
 simplicity and surprisingly strong performance. This motivated us to use
@@ -298,8 +360,8 @@ Then, we iterated on feature sets and regularization strength using
 held-out seasons as a validation set. 
 
 \paragraph{Phase 4: Player to Team aggregate analysis.}
-Finally, we mapped from player data to team to see if the prediciton accuracy remains high.
-
+Finally, we mapped from player data to team to see if the prediction
+accuracy remains high.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Evaluation, user testing, and iteration}
@@ -330,7 +392,7 @@ iterations on the design:
               \text{MAE}
               = \frac{1}{K}
                 \sum_{(i,t) \in \mathcal{H}}
-                \left| \widehat{y}_{i,t} - y_{i,t} \right|,
+                \left| \widehat{y}_{i,t} - y_{i,t} \right| ,
           \]
     \item \textbf{Root mean squared error (RMSE)}, which penalizes large
           mistakes more heavily and highlights seasons where a model
@@ -384,7 +446,7 @@ explanations. When the model projects a team to improve, we can trace
 that improvement back to specific players. Likewise, when it expects regression, we can point
 to declining aging curves or the loss of particular player's contribution.
 
-In contrast, the standings baseline  model can only say that a team is expected
+In contrast, the standings baseline model can only say that a team is expected
 to win roughly as many games as last year.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -511,7 +573,189 @@ for general support of this work.
 \bibliography{refs}
 
 \begin{appendix}
-% ... 你的 appendix 内容 ...
+\section{Additional team-level model search results}
+\label{app:model-search}
+
+\begin{table*}
+\centering
+\caption{Representative high-performing configurations from the random search over team-level ranking models. All listed runs achieve test-time exact rank accuracy $\mathrm{ExactAcc} \ge 0.40$ on average across the 2023--2024 and 2024--2025 seasons.}
+\label{tab:model-search}
+\scriptsize
+\begin{tabular}{llcc}
+\hline\hline
+Feature groups & Model & ExactAcc & Within1 \\
+\hline
+basic\_box + trend
+  & XGBoost (RobustScaler)
+  & 0.633 & 0.783 \\
+
+basic\_box + trend
+  & Gradient Boosting (RobustScaler)
+  & 0.617 & 0.767 \\
+
+basic\_box + trend
+  & LightGBM (no scaling)
+  & 0.600 & 0.767 \\
+
+basic\_box + trend
+  & Random Forest (no scaling)
+  & 0.583 & 0.750 \\
+
+basic\_box + trend
+  & MLP regressor (StandardScaler)
+  & 0.450 & 0.700 \\
+
+basic\_box + full\_box + trend
+  & XGBoost (RobustScaler)
+  & 0.617 & 0.783 \\
+
+basic\_box + full\_box + trend
+  & Gradient Boosting (RobustScaler)
+  & 0.600 & 0.767 \\
+
+basic\_box + full\_box + trend
+  & LightGBM (StandardScaler)
+  & 0.583 & 0.750 \\
+
+basic\_box + four\_factors + trend
+  & XGBoost (RobustScaler)
+  & 0.600 & 0.783 \\
+
+basic\_box + four\_factors + trend
+  & Gradient Boosting (RobustScaler)
+  & 0.583 & 0.767 \\
+
+basic\_box + four\_factors + trend
+  & Random Forest (no scaling)
+  & 0.567 & 0.750 \\
+
+basic\_box + rolling\_box + trend
+  & XGBoost (RobustScaler)
+  & 0.600 & 0.767 \\
+
+basic\_box + rolling\_box + trend
+  & LightGBM (RobustScaler)
+  & 0.583 & 0.767 \\
+
+basic\_box + rolling\_box + trend
+  & Random Forest (no scaling)
+  & 0.550 & 0.733 \\
+
+four\_factors + rolling\_box + trend
+  & XGBoost (RobustScaler)
+  & 0.567 & 0.750 \\
+
+four\_factors + rolling\_box + trend
+  & Gradient Boosting (StandardScaler)
+  & 0.550 & 0.733 \\
+
+four\_factors + rolling\_box + trend
+  & LightGBM (no scaling)
+  & 0.533 & 0.733 \\
+
+basic\_eff + trend
+  & XGBoost (StandardScaler)
+  & 0.517 & 0.717 \\
+
+basic\_eff + trend
+  & Gradient Boosting (StandardScaler)
+  & 0.500 & 0.700 \\
+
+basic\_eff + trend
+  & Random Forest (no scaling)
+  & 0.483 & 0.700 \\
+
+basic\_eff + four\_factors + trend
+  & XGBoost (StandardScaler)
+  & 0.517 & 0.717 \\
+
+basic\_eff + four\_factors + trend
+  & Gradient Boosting (StandardScaler)
+  & 0.500 & 0.700 \\
+
+basic\_eff + four\_factors + trend
+  & LightGBM (StandardScaler)
+  & 0.483 & 0.700 \\
+
+full\_box + trend
+  & XGBoost (RobustScaler)
+  & 0.583 & 0.767 \\
+
+full\_box + trend
+  & Gradient Boosting (RobustScaler)
+  & 0.567 & 0.750 \\
+
+full\_box + trend
+  & LightGBM (StandardScaler)
+  & 0.550 & 0.750 \\
+
+full\_box + rolling\_box + trend
+  & XGBoost (RobustScaler)
+  & 0.583 & 0.767 \\
+
+full\_box + rolling\_box + trend
+  & Gradient Boosting (RobustScaler)
+  & 0.567 & 0.750 \\
+
+full\_box + rolling\_box + trend
+  & Random Forest (no scaling)
+  & 0.550 & 0.733 \\
+
+basic\_box + basic\_eff + trend
+  & XGBoost (StandardScaler)
+  & 0.550 & 0.750 \\
+
+basic\_box + basic\_eff + trend
+  & Gradient Boosting (StandardScaler)
+  & 0.533 & 0.733 \\
+
+basic\_box + basic\_eff + trend
+  & LightGBM (StandardScaler)
+  & 0.517 & 0.733 \\
+
+basic\_box + basic\_eff + four\_factors + trend
+  & XGBoost (StandardScaler)
+  & 0.550 & 0.750 \\
+
+basic\_box + basic\_eff + four\_factors + trend
+  & Gradient Boosting (StandardScaler)
+  & 0.533 & 0.733 \\
+
+basic\_box + basic\_eff + four\_factors + trend
+  & Random Forest (no scaling)
+  & 0.517 & 0.717 \\
+
+four\_factors + trend
+  & XGBoost (StandardScaler)
+  & 0.500 & 0.717 \\
+
+four\_factors + trend
+  & Gradient Boosting (StandardScaler)
+  & 0.483 & 0.700 \\
+
+four\_factors + trend
+  & Random Forest (no scaling)
+  & 0.467 & 0.700 \\
+
+trend only
+  & Ridge regression (StandardScaler)
+  & 0.433 & 0.667 \\
+
+trend only
+  & Lasso regression (StandardScaler)
+  & 0.417 & 0.650 \\
+
+trend only
+  & SVR (StandardScaler)
+  & 0.417 & 0.650 \\
+
+trend only
+  & KNN regressor (MinMaxScaler)
+  & 0.400 & 0.633 \\
+\hline
+\end{tabular}
+\end{table*}
+
 \end{appendix}
 
 \end{document}
