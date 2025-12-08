@@ -1,370 +1,328 @@
 import os
-import glob
+import json
 import numpy as np
 import pandas as pd
 import time
 import random
 from datetime import datetime
-from sklearn.linear_model import LogisticRegression, Ridge, Lasso, ElasticNet, BayesianRidge
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, AdaBoostRegressor, ExtraTreesRegressor, \
-    VotingRegressor
+
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, VotingRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
-from sklearn.model_selection import TimeSeriesSplit
+
 import lightgbm as lgb
 import xgboost as xgb
-from scipy import stats
 import warnings
 
 warnings.filterwarnings("ignore")
 
 # ========== Use the combined team summary CSV directly ==========
-summary_path = "Team_stats/all_seasons_team_summary.csv"  # Path to the combined team summary CSV file
+summary_path = "Team_stats/all_seasons_team_summary.csv"
 
 # ========== Data loading ==========
 print(f"Loading data from: {summary_path}")
 data = pd.read_csv(summary_path)
 
-# Ensure wins and losses information is present
-if 'WINS' not in data.columns or 'LOSSES' not in data.columns:
+if "WINS" not in data.columns or "LOSSES" not in data.columns:
     raise ValueError("CSV must contain 'WINS' and 'LOSSES' columns")
 
-# Drop rows with missing win/loss values
+num_cols_global = data.select_dtypes(include=[np.number]).columns
+data[num_cols_global] = data[num_cols_global].replace([np.inf, -np.inf], np.nan)
+
 data = data.dropna(subset=["WINS", "LOSSES"])
 
-# Sort and compute basic win-rate metrics
 data = data.sort_values(["Team", "SeasonEndYear"])
 data["WIN_PCT"] = data["WINS"] / (data["WINS"] + data["LOSSES"])
 data["PREV_WIN_PCT"] = data.groupby("Team")["WIN_PCT"].shift(1)
 
 REG_SEASON_GAMES = 82
-# Use the most recent seasons as holdout
 latest_season = data["Season"].max()
 second_latest_season = sorted(data["Season"].unique())[-2] if len(data["Season"].unique()) > 1 else latest_season
-HOLDOUT_SEASONS = [second_latest_season, latest_season]  # Use the latest two seasons as test / holdout
+HOLDOUT_SEASONS = [second_latest_season, latest_season]
 
-TARGET_EXACT = 0.8  # Target exact ranking accuracy
-TARGET_WITHIN1 = 0.8  # Target ranking accuracy within 1 position
-MAX_ITERATIONS = 200  # Maximum number of random search iterations
-BEST_OVERALL_SCORE = -1  # Best overall score observed so far
+TARGET_EXACT = 0.8
+TARGET_WITHIN1 = 0.8
+MAX_ITERATIONS = 1000   
+BEST_OVERALL_SCORE = -1
 
 print(f"Data loaded: {len(data)} rows, {data['Season'].nunique()} seasons")
 print(f"Holdout seasons: {HOLDOUT_SEASONS}")
 print(f"Training seasons: {sorted(set(data['Season']) - set(HOLDOUT_SEASONS))}")
 
 
-# ========== Simplified feature factory ==========
-class FeatureFactory:
-    """Factory class that generates different feature sets."""
+# ========== Build full feature matrix once ==========
+def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    在原始数据基础上，一次性构造所有可能用到的 feature 列：
+    - basic_box: 简单 box score
+    - basic_eff: TS%, eFG%, AST/TOV, PREV_WIN_PCT
+    - four_factors: 四因素
+    - rolling_box: 3 年 rolling 平均 (PTS, AST, TRB, STL, BLK)
+    - trend: WIN_PCT 的 rolling / trend
+    """
+    df = df.copy()
+    df = df.sort_values(["Team", "SeasonEndYear"])
 
-    @staticmethod
-    def get_all_methods():
-        """Return all available feature methods."""
-        return [
-            {'name': 'basic', 'func': FeatureFactory.create_basic_features},
-            {'name': 'advanced', 'func': FeatureFactory.create_advanced_features},
-            {'name': 'stats_only', 'func': FeatureFactory.create_stats_features},
-            {'name': 'trend_only', 'func': FeatureFactory.create_trend_features},
-        ]
 
-    @staticmethod
-    def create_basic_features(df, is_training=True, train_df=None):
-        """Create a basic feature set."""
-        df = df.copy()
-
+    if "WIN_PCT" not in df.columns:
         df["WIN_PCT"] = df["WINS"] / (df["WINS"] + df["LOSSES"])
+    if "PREV_WIN_PCT" not in df.columns:
         df["PREV_WIN_PCT"] = df.groupby("Team")["WIN_PCT"].shift(1)
 
-        # Basic box-score stats
-        basic_stats = ["PTS", "FGA", "FTA", "TRB", "AST", "STL", "BLK", "TOV", "PF"]
-
-        # Simple efficiency features
+    # ------- basic_eff -------
+    if {"PTS", "FGA", "FTA"}.issubset(df.columns):
         df["TS_PCT"] = df["PTS"] / (2 * (df["FGA"] + 0.44 * df["FTA"] + 1e-8))
+    else:
+        df["TS_PCT"] = np.nan
+
+    if {"FG", "3P", "FGA"}.issubset(df.columns):
         df["EFG_PCT"] = (df["FG"] + 0.5 * df["3P"]) / (df["FGA"] + 1e-8)
+    else:
+        df["EFG_PCT"] = np.nan
+
+    if {"AST", "TOV"}.issubset(df.columns):
         df["AST_TO_RATIO"] = df["AST"] / (df["TOV"] + 1e-8)
+    else:
+        df["AST_TO_RATIO"] = np.nan
 
-        feature_cols = basic_stats + ["TS_PCT", "EFG_PCT", "AST_TO_RATIO", "PREV_WIN_PCT"]
-
-        return df, feature_cols
-
-    @staticmethod
-    def create_advanced_features(df, is_training=True, train_df=None):
-        """Create a more advanced feature set."""
-        df = df.copy()
-
-        df["WIN_PCT"] = df["WINS"] / (df["WINS"] + df["LOSSES"])
-        df["PREV_WIN_PCT"] = df.groupby("Team")["WIN_PCT"].shift(1)
-
-        # Four factors-style features
+    # ------- four_factors -------
+    if {"FG", "3P", "FGA"}.issubset(df.columns):
         df["EFG_FACTOR"] = (df["FG"] + 0.5 * df["3P"]) / (df["FGA"] + 1e-8)
+    else:
+        df["EFG_FACTOR"] = np.nan
+
+    if {"FGA", "FTA", "TOV"}.issubset(df.columns):
         df["TOV_FACTOR"] = 1 - df["TOV"] / (df["FGA"] + 0.44 * df["FTA"] + df["TOV"] + 1e-8)
+    else:
+        df["TOV_FACTOR"] = np.nan
+
+    if {"ORB", "DRB"}.issubset(df.columns):
         df["OREB_FACTOR"] = df["ORB"] / (df["ORB"] + df["DRB"] + 1e-8)
+    else:
+        df["OREB_FACTOR"] = np.nan
+
+    if {"FTA", "FGA"}.issubset(df.columns):
         df["FTR_FACTOR"] = df["FTA"] / (df["FGA"] + 1e-8)
+    else:
+        df["FTR_FACTOR"] = np.nan
 
-        # Time-series rolling stats per team
-        df = df.sort_values(["Team", "SeasonEndYear"])
-        for col in ["PTS", "AST", "TRB", "STL", "BLK"]:
-            if col in df.columns:
-                df[f"{col}_3Y_AVG"] = df.groupby("Team")[col].transform(
-                    lambda x: x.rolling(3, min_periods=1).mean()
-                )
+    # ------- rolling_box -------
+    for col in ["PTS", "AST", "TRB", "STL", "BLK"]:
+        if col in df.columns:
+            df[f"{col}_3Y_AVG"] = df.groupby("Team")[col].transform(
+                lambda x: x.rolling(3, min_periods=1).mean()
+            )
+        else:
+            df[f"{col}_3Y_AVG"] = np.nan
 
-        # Win-percentage trend features
-        df["WIN_PCT_3Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
-            lambda x: x.rolling(3, min_periods=1).mean()
-        )
-        df["WIN_PCT_TREND"] = df.groupby("Team")["WIN_PCT"].transform(
-            lambda x: x.rolling(3, min_periods=1).mean().diff()
-        )
+    # ------- trend features -------
+    df["WIN_PCT_3Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
+        lambda x: x.rolling(3, min_periods=1).mean()
+    )
+    df["WIN_PCT_5Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
+        lambda x: x.rolling(5, min_periods=1).mean()
+    )
+    df["WIN_PCT_TREND"] = df.groupby("Team")["WIN_PCT"].transform(
+        lambda x: x.rolling(3, min_periods=1).mean().diff()
+    )
 
-        feature_cols = [
-            "PREV_WIN_PCT", "EFG_FACTOR", "TOV_FACTOR", "OREB_FACTOR", "FTR_FACTOR",
-            "WIN_PCT_3Y_AVG", "WIN_PCT_TREND"
-        ]
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    df[num_cols] = df[num_cols].replace([np.inf, -np.inf], np.nan)
 
-        for col in ["PTS", "AST", "TRB", "STL", "BLK"]:
-            feature_cols.append(f"{col}_3Y_AVG")
-
-        return df, feature_cols
-
-    @staticmethod
-    def create_stats_features(df, is_training=True, train_df=None):
-        """Use only raw statistical features (box-score totals)."""
-        df = df.copy()
-
-        df["WIN_PCT"] = df["WINS"] / (df["WINS"] + df["LOSSES"])
-        df["PREV_WIN_PCT"] = df.groupby("Team")["WIN_PCT"].shift(1)
-
-        # All basic counting stats
-        all_stats = ["FG", "FGA", "3P", "3PA", "2P", "2PA", "FT", "FTA",
-                     "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "PF", "PTS"]
-
-        feature_cols = [col for col in all_stats if col in df.columns]
-        feature_cols.append("PREV_WIN_PCT")
-
-        return df, feature_cols
-
-    @staticmethod
-    def create_trend_features(df, is_training=True, train_df=None):
-        """Use only trend-based features derived from win percentage."""
-        df = df.copy()
-
-        df["WIN_PCT"] = df["WINS"] / (df["WINS"] + df["LOSSES"])
-        df["PREV_WIN_PCT"] = df.groupby("Team")["WIN_PCT"].shift(1)
-
-        df = df.sort_values(["Team", "SeasonEndYear"])
-
-        # Rolling win-percentage and trend features
-        df["WIN_PCT_3Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
-            lambda x: x.rolling(3, min_periods=1).mean()
-        )
-        df["WIN_PCT_5Y_AVG"] = df.groupby("Team")["WIN_PCT"].transform(
-            lambda x: x.rolling(5, min_periods=1).mean()
-        )
-        df["WIN_PCT_TREND"] = df.groupby("Team")["WIN_PCT"].transform(
-            lambda x: x.rolling(3, min_periods=1).mean().diff()
-        )
-
-        feature_cols = ["PREV_WIN_PCT", "WIN_PCT_3Y_AVG", "WIN_PCT_5Y_AVG", "WIN_PCT_TREND"]
-
-        return df, feature_cols
+    return df
 
 
-# ========== Simplified model factory ==========
+FEATURE_GROUPS = {
+    "basic_box": ["PTS", "FGA", "FTA", "TRB", "AST", "STL", "BLK", "TOV", "PF"],
+    "basic_eff": ["TS_PCT", "EFG_PCT", "AST_TO_RATIO", "PREV_WIN_PCT"],
+    "four_factors": ["EFG_FACTOR", "TOV_FACTOR", "OREB_FACTOR", "FTR_FACTOR"],
+    "full_box": [
+        "FG", "FGA", "3P", "3PA", "2P", "2PA", "FT", "FTA",
+        "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "PF", "PTS"
+    ],
+    "rolling_box": [f"{c}_3Y_AVG" for c in ["PTS", "AST", "TRB", "STL", "BLK"]],
+    "trend": ["WIN_PCT_3Y_AVG", "WIN_PCT_5Y_AVG", "WIN_PCT_TREND"],
+}
+
+
+# ========== Model factory ==========
 class ModelFactory:
-    """Factory class that generates different model configurations."""
-
     @staticmethod
     def get_all_configs():
-        """Return all model configurations for random search."""
         configs = []
 
-        # LightGBM configs (several combinations)
+        # LightGBM
         for n_est in [50, 100, 200, 300]:
             for lr in [0.01, 0.05, 0.1]:
                 for depth in [3, 5, 7, 10]:
                     configs.append({
-                        'type': 'lgb',
-                        'config': {'n_estimators': n_est, 'learning_rate': lr, 'max_depth': depth}
+                        "type": "lgb",
+                        "config": {"n_estimators": n_est, "learning_rate": lr, "max_depth": depth},
                     })
 
-        # XGBoost configs
+        # XGBoost
         for n_est in [50, 100, 200]:
             for lr in [0.01, 0.05, 0.1]:
                 for depth in [3, 5, 7]:
                     configs.append({
-                        'type': 'xgb',
-                        'config': {'n_estimators': n_est, 'learning_rate': lr, 'max_depth': depth}
+                        "type": "xgb",
+                        "config": {"n_estimators": n_est, "learning_rate": lr, "max_depth": depth},
                     })
 
-        # Random Forest configs
+        # Random Forest
         for n_est in [50, 100, 200, 300]:
             for depth in [5, 10, 15, 20]:
                 configs.append({
-                    'type': 'rf',
-                    'config': {'n_estimators': n_est, 'max_depth': depth}
+                    "type": "rf",
+                    "config": {"n_estimators": n_est, "max_depth": depth},
                 })
 
-        # Gradient Boosting configs
+        # Gradient Boosting
         for n_est in [50, 100, 200]:
             for lr in [0.01, 0.05, 0.1]:
                 for depth in [3, 5, 7]:
                     configs.append({
-                        'type': 'gb',
-                        'config': {'n_estimators': n_est, 'learning_rate': lr, 'max_depth': depth}
+                        "type": "gb",
+                        "config": {"n_estimators": n_est, "learning_rate": lr, "max_depth": depth},
                     })
 
-        # Linear models (Ridge and Lasso with different alphas)
+        # Linear models
         for alpha in [0.001, 0.01, 0.1, 1.0, 10.0]:
-            configs.append({'type': 'ridge', 'config': {'alpha': alpha}})
-            configs.append({'type': 'lasso', 'config': {'alpha': alpha}})
+            configs.append({"type": "ridge", "config": {"alpha": alpha}})
+            configs.append({"type": "lasso", "config": {"alpha": alpha}})
 
-        # Neural network configs
+        # Neural nets
         for layers in [(50,), (100,), (50, 25), (100, 50)]:
             for alpha in [0.0001, 0.001, 0.01]:
                 configs.append({
-                    'type': 'nn',
-                    'config': {'hidden_layer_sizes': layers, 'alpha': alpha}
+                    "type": "nn",
+                    "config": {"hidden_layer_sizes": layers, "alpha": alpha},
                 })
 
-        # SVM configs
+        # SVM
         for C in [0.1, 1.0, 10.0]:
-            for kernel in ['linear', 'rbf']:
-                configs.append({
-                    'type': 'svm',
-                    'config': {'C': C, 'kernel': kernel}
-                })
+            for kernel in ["linear", "rbf"]:
+                configs.append({"type": "svm", "config": {"C": C, "kernel": kernel}})
 
-        # KNN configs
+        # KNN
         for n_neighbors in [3, 5, 7, 10]:
-            configs.append({
-                'type': 'knn',
-                'config': {'n_neighbors': n_neighbors}
-            })
+            configs.append({"type": "knn", "config": {"n_neighbors": n_neighbors}})
 
-        # Simple ensemble configs (VotingRegressor over a few base models)
+        # Simple ensembles
         ensemble_configs = [
-            {'models': ['lgb', 'rf', 'ridge'], 'weights': [0.4, 0.3, 0.3]},
-            {'models': ['lgb', 'xgb', 'gb'], 'weights': [0.5, 0.3, 0.2]},
-            {'models': ['rf', 'gb', 'ridge'], 'weights': [0.4, 0.4, 0.2]},
-            {'models': ['lgb', 'rf', 'gb', 'ridge'], 'weights': [0.4, 0.2, 0.2, 0.2]},
+            {"models": ["lgb", "rf", "ridge"], "weights": [0.4, 0.3, 0.3]},
+            {"models": ["lgb", "xgb", "gb"], "weights": [0.5, 0.3, 0.2]},
+            {"models": ["rf", "gb", "ridge"], "weights": [0.4, 0.4, 0.2]},
+            {"models": ["lgb", "rf", "gb", "ridge"], "weights": [0.4, 0.2, 0.2, 0.2]},
         ]
-
         for config in ensemble_configs:
-            configs.append({'type': 'ensemble', 'config': config})
+            configs.append({"type": "ensemble", "config": config})
 
         return configs
 
     @staticmethod
     def create_model(model_config):
-        """Create a model instance from a configuration dictionary."""
-        model_type = model_config['type']
-        config = model_config['config']
+        model_type = model_config["type"]
+        config = model_config["config"]
 
-        if model_type == 'lgb':
+        if model_type == "lgb":
             return lgb.LGBMRegressor(
-                n_estimators=config['n_estimators'],
-                learning_rate=config['learning_rate'],
-                max_depth=config['max_depth'],
+                n_estimators=config["n_estimators"],
+                learning_rate=config["learning_rate"],
+                max_depth=config["max_depth"],
                 random_state=42,
                 n_jobs=-1,
-                verbose=-1
+                verbose=-1,
             )
-        elif model_type == 'xgb':
+        elif model_type == "xgb":
             return xgb.XGBRegressor(
-                n_estimators=config['n_estimators'],
-                learning_rate=config['learning_rate'],
-                max_depth=config['max_depth'],
+                n_estimators=config["n_estimators"],
+                learning_rate=config["learning_rate"],
+                max_depth=config["max_depth"],
                 random_state=42,
                 n_jobs=-1,
-                verbosity=0
+                verbosity=0,
             )
-        elif model_type == 'rf':
+        elif model_type == "rf":
             return RandomForestRegressor(
-                n_estimators=config['n_estimators'],
-                max_depth=config['max_depth'],
+                n_estimators=config["n_estimators"],
+                max_depth=config["max_depth"],
                 random_state=42,
-                n_jobs=-1
+                n_jobs=-1,
             )
-        elif model_type == 'gb':
+        elif model_type == "gb":
             return GradientBoostingRegressor(
-                n_estimators=config['n_estimators'],
-                learning_rate=config['learning_rate'],
-                max_depth=config['max_depth'],
-                random_state=42
+                n_estimators=config["n_estimators"],
+                learning_rate=config["learning_rate"],
+                max_depth=config["max_depth"],
+                random_state=42,
             )
-        elif model_type == 'nn':
+        elif model_type == "nn":
             return MLPRegressor(
-                hidden_layer_sizes=config['hidden_layer_sizes'],
-                alpha=config['alpha'],
+                hidden_layer_sizes=config["hidden_layer_sizes"],
+                alpha=config["alpha"],
                 random_state=42,
                 max_iter=1000,
-                early_stopping=True
+                early_stopping=True,
             )
-        elif model_type == 'svm':
-            return SVR(C=config['C'], kernel=config['kernel'])
-        elif model_type == 'ridge':
-            return Ridge(alpha=config['alpha'], random_state=42)
-        elif model_type == 'lasso':
-            return Lasso(alpha=config['alpha'], random_state=42)
-        elif model_type == 'knn':
-            return KNeighborsRegressor(n_neighbors=config['n_neighbors'])
-        elif model_type == 'ensemble':
-            # Build a VotingRegressor with the requested base models
+        elif model_type == "svm":
+            return SVR(C=config["C"], kernel=config["kernel"])
+        elif model_type == "ridge":
+            return Ridge(alpha=config["alpha"], random_state=42)
+        elif model_type == "lasso":
+            return Lasso(alpha=config["alpha"], random_state=42)
+        elif model_type == "knn":
+            return KNeighborsRegressor(n_neighbors=config["n_neighbors"])
+        elif model_type == "ensemble":
             estimators = []
-            for i, model_name in enumerate(config['models']):
-                if model_name == 'lgb':
-                    estimators.append(('lgb', lgb.LGBMRegressor(n_estimators=100, random_state=42 + i)))
-                elif model_name == 'xgb':
-                    estimators.append(('xgb', xgb.XGBRegressor(n_estimators=100, random_state=42 + i)))
-                elif model_name == 'rf':
-                    estimators.append(('rf', RandomForestRegressor(n_estimators=100, random_state=42 + i)))
-                elif model_name == 'gb':
-                    estimators.append(('gb', GradientBoostingRegressor(n_estimators=100, random_state=42 + i)))
-                elif model_name == 'ridge':
-                    estimators.append(('ridge', Ridge(alpha=1.0, random_state=42 + i)))
-
-            return VotingRegressor(estimators=estimators, weights=config['weights'])
+            for i, model_name in enumerate(config["models"]):
+                if model_name == "lgb":
+                    estimators.append(("lgb", lgb.LGBMRegressor(n_estimators=100, random_state=42 + i)))
+                elif model_name == "xgb":
+                    estimators.append(("xgb", xgb.XGBRegressor(n_estimators=100, random_state=42 + i)))
+                elif model_name == "rf":
+                    estimators.append(("rf", RandomForestRegressor(n_estimators=100, random_state=42 + i)))
+                elif model_name == "gb":
+                    estimators.append(("gb", GradientBoostingRegressor(n_estimators=100, random_state=42 + i)))
+                elif model_name == "ridge":
+                    estimators.append(("ridge", Ridge(alpha=1.0, random_state=42 + i)))
+            return VotingRegressor(estimators=estimators, weights=config["weights"])
 
 
 # ========== Preprocessor factory ==========
 class PreprocessorFactory:
-    """Factory class for creating data preprocessors."""
-
     @staticmethod
     def get_all_configs():
-        """Return all preprocessor configurations."""
         return [
-            {'type': 'standard'},
-            {'type': 'robust'},
-            {'type': 'minmax'},
-            {'type': 'none'},
+            {"type": "standard"},
+            {"type": "robust"},
+            {"type": "minmax"},
+            {"type": "none"},
         ]
 
     @staticmethod
     def create_preprocessor(preprocessor_config):
-        """Create a scaler / preprocessor instance."""
-        preprocessor_type = preprocessor_config['type']
-
-        if preprocessor_type == 'standard':
+        t = preprocessor_config["type"]
+        if t == "standard":
             return StandardScaler()
-        elif preprocessor_type == 'robust':
+        elif t == "robust":
             return RobustScaler()
-        elif preprocessor_type == 'minmax':
+        elif t == "minmax":
             return MinMaxScaler()
         else:
-            return None  # No preprocessing
+            return None
 
 
 # ========== Evaluation function ==========
 def evaluate_predictions(df, true_col="WIN_PCT", pred_col="PRED_SCORE"):
-    """Evaluate ranking predictions (exact match and within-k accuracy)."""
+    """
+    排名评估：exact / within 1 / within 2
+    """
     df = df.copy()
-    df = df.sort_values(true_col, ascending=False)
-    df["TRUE_RANK"] = np.arange(1, len(df) + 1)
+    df["TRUE_RANK"] = df[true_col].rank(method="min", ascending=False).astype(int)
     df["PRED_RANK"] = df[pred_col].rank(method="min", ascending=False).astype(int)
     df["RANK_DIFF"] = df["PRED_RANK"] - df["TRUE_RANK"]
 
@@ -372,20 +330,17 @@ def evaluate_predictions(df, true_col="WIN_PCT", pred_col="PRED_SCORE"):
     within1_acc = (df["RANK_DIFF"].abs() <= 1).mean()
     within2_acc = (df["RANK_DIFF"].abs() <= 2).mean()
 
-    # Overall score is a weighted combination of exact and within-1 accuracy
     overall_score = within1_acc * 0.7 + exact_acc * 0.3
-
     return {
-        "exact_rank_acc": exact_acc,
-        "within1_rank_acc": within1_acc,
-        "within2_rank_acc": within2_acc,
-        "overall_score": overall_score
+        "exact_rank_acc": float(exact_acc),
+        "within1_rank_acc": float(within1_acc),
+        "within2_rank_acc": float(within2_acc),
+        "overall_score": float(overall_score),
     }
 
 
 # ========== Main auto-optimization loop ==========
 def auto_optimize():
-    """Main loop for random search and automatic configuration optimization."""
     global BEST_OVERALL_SCORE
 
     print("=" * 80)
@@ -393,200 +348,208 @@ def auto_optimize():
     print(f"Target: Exact >= {TARGET_EXACT * 100:.0f}%, Within1 >= {TARGET_WITHIN1 * 100:.0f}%")
     print("=" * 80)
 
-    # Train / test split by season
-    train_df = data[~data["Season"].isin(HOLDOUT_SEASONS)].copy()
-    test_df = data[data["Season"].isin(HOLDOUT_SEASONS)].copy()
+    full_df = data.copy()
 
-    print(f"Training seasons: {train_df['Season'].nunique()} ({len(train_df)} rows)")
-    print(f"Test seasons: {test_df['Season'].nunique()} ({len(test_df)} rows)")
+    train_mask = ~full_df["Season"].isin(HOLDOUT_SEASONS)
+    test_mask = full_df["Season"].isin(HOLDOUT_SEASONS)
 
-    # Get all candidates
-    feature_methods = FeatureFactory.get_all_methods()
+    train_raw = full_df[train_mask].copy()
+    test_raw = full_df[test_mask].copy()
+
+    train_feat_all = build_feature_matrix(train_raw)
+    test_feat_all = build_feature_matrix(test_raw)
+
+    for df_ in (train_feat_all, test_feat_all):
+        num_cols = df_.select_dtypes(include=[np.number]).columns
+        df_[num_cols] = df_[num_cols].replace([np.inf, -np.inf], np.nan)
+        df_.dropna(subset=["WIN_PCT"], inplace=True)
+
+    print(f"Training seasons: {train_feat_all['Season'].nunique()} ({len(train_feat_all)} rows)")
+    print(f"Test seasons: {test_feat_all['Season'].nunique()} ({len(test_feat_all)} rows)")
+
     model_configs = ModelFactory.get_all_configs()
     preprocessor_configs = PreprocessorFactory.get_all_configs()
+    feature_group_names_all = list(FEATURE_GROUPS.keys())
 
     print(f"\nAvailable configurations:")
-    print(f"  Feature methods: {len(feature_methods)}")
+    print(f"  Feature groups: {len(feature_group_names_all)} ({feature_group_names_all})")
     print(f"  Model configs: {len(model_configs)}")
     print(f"  Preprocessor configs: {len(preprocessor_configs)}")
-    print(f"  Total combinations: {len(feature_methods) * len(model_configs) * len(preprocessor_configs):,}")
 
     iteration = 0
     best_results = {}
     start_time = time.time()
-
-    # History of experiments
     history = []
 
-    # Main random search loop
     while iteration < MAX_ITERATIONS:
         iteration += 1
 
-        # Randomly sample a configuration
-        feature_method = random.choice(feature_methods)
+        while True:
+            k = random.randint(1, len(feature_group_names_all))
+            feature_groups = random.sample(feature_group_names_all, k)
+            if not (len(feature_groups) == 1 and feature_groups[0] == "trend"):
+                break
+
         model_config = random.choice(model_configs)
         preprocessor_config = random.choice(preprocessor_configs)
 
-        print(f"\n[Iteration {iteration:3d}/{MAX_ITERATIONS}]")
-        print(f"  Features: {feature_method['name']}")
+        print(f"\n[Iteration {iteration:4d}/{MAX_ITERATIONS}]")
+        print(f"  Feature groups: {feature_groups}")
         print(f"  Model: {model_config['type']}")
         print(f"  Preprocessor: {preprocessor_config['type']}")
 
         try:
-            # 1. Feature engineering on the training set
-            train_feat, feature_cols = feature_method['func'](train_df, is_training=True)
-            print(f"  Features: {len(feature_cols)}")
+            cols = set()
+            for g in feature_groups:
+                for c in FEATURE_GROUPS[g]:
+                    if c in train_feat_all.columns:
+                        cols.add(c)
+            feature_cols = sorted(cols)
 
-            # 2. Prepare X/y for training
-            X_train = train_feat[feature_cols].values
-            y_train = train_feat["WIN_PCT"].values
+            if not feature_cols:
+                print("  -> No valid feature columns, skipping.")
+                continue
 
-            # 3. Optional preprocessing
+            print(f"  Number of features: {len(feature_cols)}")
+
+            X_train = train_feat_all[feature_cols].copy()
+            y_train = train_feat_all["WIN_PCT"].values
+
+            num_cols_iter = X_train.select_dtypes(include=[np.number]).columns
+            X_train[num_cols_iter] = X_train[num_cols_iter].replace([np.inf, -np.inf], np.nan)
+            train_means = X_train.mean(axis=0)
+            X_train = X_train.fillna(train_means)
+
             preprocessor = PreprocessorFactory.create_preprocessor(preprocessor_config)
             if preprocessor is not None:
-                X_train = preprocessor.fit_transform(X_train)
+                X_train_proc = preprocessor.fit_transform(X_train)
+            else:
+                X_train_proc = X_train.values
 
-            # 4. Train the model
             model = ModelFactory.create_model(model_config)
-            model.fit(X_train, y_train)
+            model.fit(X_train_proc, y_train)
 
-            # 5. Validate on the most recent 3 years of the training data
-            last_year = train_feat["SeasonEndYear"].max()
+            last_year = int(train_feat_all["SeasonEndYear"].max())
             recent_years = [last_year - i for i in range(3)]
-            recent_mask = train_feat["SeasonEndYear"].isin(recent_years)
-
+            val_mask = train_feat_all["SeasonEndYear"].isin(recent_years)
             val_metrics = None
-            if recent_mask.any():
-                recent_df = train_feat[recent_mask].copy()
-                X_recent = recent_df[feature_cols].values
-                if preprocessor is not None:
-                    X_recent = preprocessor.transform(X_recent)
 
-                recent_pred = model.predict(X_recent)
+            if val_mask.any():
+                recent_df = train_feat_all[val_mask].copy()
+                X_recent = recent_df[feature_cols].copy()
+
+                num_cols_recent = X_recent.select_dtypes(include=[np.number]).columns
+                X_recent[num_cols_recent] = X_recent[num_cols_recent].replace([np.inf, -np.inf], np.nan)
+                X_recent = X_recent.fillna(train_means)
+
+                if preprocessor is not None:
+                    X_recent_proc = preprocessor.transform(X_recent)
+                else:
+                    X_recent_proc = X_recent.values
+
+                recent_pred = model.predict(X_recent_proc)
                 recent_df["PRED_SCORE"] = recent_pred
 
                 val_metrics = evaluate_predictions(recent_df, true_col="WIN_PCT", pred_col="PRED_SCORE")
                 print(
-                    f"  Val - Exact: {val_metrics['exact_rank_acc']:.3f}, Within1: {val_metrics['within1_rank_acc']:.3f}")
+                    f"  Val - Exact: {val_metrics['exact_rank_acc']:.3f}, "
+                    f"Within1: {val_metrics['within1_rank_acc']:.3f}"
+                )
 
-            # 6. Evaluate on each holdout season
             all_holdout_results = []
             for target_season in HOLDOUT_SEASONS:
-                test_season_df = test_df[test_df["Season"] == target_season].copy()
-                if test_season_df.empty:
+                season_df = test_feat_all[test_feat_all["Season"] == target_season].copy()
+                if season_df.empty:
                     continue
 
-                # Create test features using the same method
-                test_feat, _ = feature_method['func'](test_season_df, is_training=False, train_df=train_df)
+                X_test = season_df[feature_cols].copy()
+                num_cols_test = X_test.select_dtypes(include=[np.number]).columns
+                X_test[num_cols_test] = X_test[num_cols_test].replace([np.inf, -np.inf], np.nan)
+                X_test = X_test.fillna(train_means)
 
-                # Ensure feature columns are aligned between train and test
-                for col in feature_cols:
-                    if col not in test_feat.columns:
-                        test_feat[col] = 0
-
-                X_test = test_feat[feature_cols].values
                 if preprocessor is not None:
-                    X_test = preprocessor.transform(X_test)
+                    X_test_proc = preprocessor.transform(X_test)
+                else:
+                    X_test_proc = X_test.values
 
-                # Predict on holdout
-                test_pred = model.predict(X_test)
-                test_feat["PRED_SCORE"] = test_pred
+                test_pred = model.predict(X_test_proc)
+                season_df["PRED_SCORE"] = test_pred
 
-                # Evaluate ranking quality
-                test_metrics = evaluate_predictions(test_feat, true_col="WIN_PCT", pred_col="PRED_SCORE")
-                all_holdout_results.append(test_metrics)
+                eval_df = season_df.dropna(subset=["WIN_PCT"]).copy()
+                if len(eval_df) == 0:
+                    continue
 
-            # 7. Aggregate metrics across all holdout seasons
+                tm = evaluate_predictions(eval_df, true_col="WIN_PCT", pred_col="PRED_SCORE")
+                tm["season"] = target_season
+                all_holdout_results.append(tm)
+
             if all_holdout_results:
                 avg_exact = np.mean([r["exact_rank_acc"] for r in all_holdout_results])
                 avg_within1 = np.mean([r["within1_rank_acc"] for r in all_holdout_results])
+                avg_within2 = np.mean([r["within2_rank_acc"] for r in all_holdout_results])
                 avg_overall = np.mean([r["overall_score"] for r in all_holdout_results])
 
-                print(f"  Test - Exact: {avg_exact:.3f}, Within1: {avg_within1:.3f}, Overall: {avg_overall:.3f}")
+                print(
+                    f"  Test - Exact: {avg_exact:.3f}, "
+                    f"Within1: {avg_within1:.3f}, "
+                    f"Within2: {avg_within2:.3f}, "
+                    f"Overall: {avg_overall:.3f}"
+                )
 
-                # Log this iteration to history
-                history.append({
-                    'iteration': iteration,
-                    'feature_method': feature_method['name'],
-                    'model_type': model_config['type'],
-                    'preprocessor': preprocessor_config['type'],
-                    'val_exact': val_metrics['exact_rank_acc'] if val_metrics else 0,
-                    'val_within1': val_metrics['within1_rank_acc'] if val_metrics else 0,
-                    'test_exact': avg_exact,
-                    'test_within1': avg_within1,
-                    'test_overall': avg_overall
-                })
+                entry = {
+                    "iteration": iteration,
+                    "feature_groups": "|".join(feature_groups),
+                    "n_features": len(feature_cols),
+                    "feature_cols": ",".join(feature_cols),
+                    "model_type": model_config["type"],
+                    "model_params": json.dumps(model_config["config"], sort_keys=True),
+                    "preprocessor": preprocessor_config["type"],
+                    "val_exact": float(val_metrics["exact_rank_acc"]) if val_metrics else 0.0,
+                    "val_within1": float(val_metrics["within1_rank_acc"]) if val_metrics else 0.0,
+                    "test_exact": float(avg_exact),
+                    "test_within1": float(avg_within1),
+                    "test_within2": float(avg_within2),
+                    "test_overall": float(avg_overall),
+                }
+                for r in all_holdout_results:
+                    season = r["season"]
+                    entry[f"test_exact_{season}"] = float(r["exact_rank_acc"])
+                    entry[f"test_within1_{season}"] = float(r["within1_rank_acc"])
+                    entry[f"test_within2_{season}"] = float(r["within2_rank_acc"])
+                    entry[f"test_overall_{season}"] = float(r["overall_score"])
+                history.append(entry)
 
-                # Check if the current configuration meets target thresholds
-                if avg_exact >= TARGET_EXACT and avg_within1 >= TARGET_WITHIN1:
-                    print(f"\n{'=' * 60}")
-                    print("TARGET ACHIEVED!")
-                    print(f"Exact: {avg_exact:.4f} >= {TARGET_EXACT}")
-                    print(f"Within1: {avg_within1:.4f} >= {TARGET_WITHIN1}")
-
-                    # Save the best configuration found
-                    best_results = {
-                        'iteration': iteration,
-                        'feature_method': feature_method,
-                        'model_config': model_config,
-                        'preprocessor_config': preprocessor_config,
-                        'feature_cols': feature_cols,
-                        'preprocessor': preprocessor,
-                        'model': model,
-                        'avg_exact': avg_exact,
-                        'avg_within1': avg_within1,
-                        'avg_overall': avg_overall,
-                        'train_df': train_df,
-                        'test_df': test_df
-                    }
-
-                    return best_results, history
-
-                # Update global best if this configuration is better
                 if avg_overall > BEST_OVERALL_SCORE:
                     BEST_OVERALL_SCORE = avg_overall
                     best_results = {
-                        'iteration': iteration,
-                        'feature_method': feature_method,
-                        'model_config': model_config,
-                        'preprocessor_config': preprocessor_config,
-                        'feature_cols': feature_cols,
-                        'preprocessor': preprocessor,
-                        'model': model,
-                        'avg_exact': avg_exact,
-                        'avg_within1': avg_within1,
-                        'avg_overall': avg_overall,
-                        'train_df': train_df,
-                        'test_df': test_df
+                        "iteration": iteration,
+                        "feature_groups": feature_groups,
+                        "model_config": model_config,
+                        "preprocessor_config": preprocessor_config,
+                        "feature_cols": feature_cols,
+                        "avg_exact": float(avg_exact),
+                        "avg_within1": float(avg_within1),
+                        "avg_overall": float(avg_overall),
                     }
-
-                    print(f"NEW BEST: Overall = {avg_overall:.4f}")
+                    print(f"  -> NEW GLOBAL BEST: Overall = {avg_overall:.4f}")
 
         except Exception as e:
-            # Catch any error during feature creation, training, or evaluation
-            print(f"Error: {str(e)[:50]}")
+            print(f"  Error in iteration {iteration}: {str(e)[:80]}")
             continue
 
-        # Show progress every 10 iterations with rough time estimates
         if iteration % 10 == 0:
-            elapsed_time = time.time() - start_time
-            avg_time_per_iter = elapsed_time / iteration
-            remaining_iter = MAX_ITERATIONS - iteration
-            estimated_remaining = avg_time_per_iter * remaining_iter
-
+            elapsed = time.time() - start_time
+            avg_t = elapsed / iteration
+            remain = avg_t * (MAX_ITERATIONS - iteration)
             print(f"\n  Progress: {iteration}/{MAX_ITERATIONS}")
-            print(f"  Elapsed: {elapsed_time:.1f}s")
-            print(f"  Remaining: ~{estimated_remaining:.1f}s")
-            print(f"  Best overall: {BEST_OVERALL_SCORE:.4f}")
+            print(f"  Elapsed: {elapsed:.1f}s, Estimated remaining: ~{remain:.1f}s")
+            print(f"  Best overall so far: {BEST_OVERALL_SCORE:.4f}")
 
-    # If maximum iterations are reached without hitting the target, return the best so far
-    print(f"\n{'=' * 60}")
-    print(f"Maximum iterations reached ({MAX_ITERATIONS}) without achieving target.")
-    print(f"Best overall score: {BEST_OVERALL_SCORE:.4f}")
-
+    print("\n" + "=" * 60)
+    print(f"Search finished. Best overall score: {BEST_OVERALL_SCORE:.4f}")
     if best_results:
-        print(f"\nBest configuration found at iteration {best_results['iteration']}:")
-        print(f"  Features: {best_results['feature_method']['name']}")
+        print(f"Best configuration found at iteration {best_results['iteration']}:")
+        print(f"  Feature groups: {best_results['feature_groups']}")
         print(f"  Model: {best_results['model_config']['type']}")
         print(f"  Preprocessor: {best_results['preprocessor_config']['type']}")
         print(f"  Test Exact: {best_results['avg_exact']:.4f}")
@@ -596,128 +559,130 @@ def auto_optimize():
     return best_results, history
 
 
-# ========== Use the best model for detailed predictions ==========
+# ========== Detailed predictions for best config ==========
 def detailed_predictions_with_best(best_config):
-    """Run detailed predictions using the best configuration and print full rankings."""
     print("\n" + "=" * 80)
-    print("DETAILED PREDICTIONS WITH BEST MODEL")
+    print("DETAILED PREDICTIONS (GLOBAL BEST)")
     print("=" * 80)
 
-    train_df = best_config['train_df']
-    test_df = best_config['test_df']
+    full_df = data.copy()
+    train_mask = ~full_df["Season"].isin(HOLDOUT_SEASONS)
+    test_mask = full_df["Season"].isin(HOLDOUT_SEASONS)
+    train_raw = full_df[train_mask].copy()
+    test_raw = full_df[test_mask].copy()
 
-    # Retrain the best model on the full training data
-    print(f"\nRetraining best model on all training data...")
+    train_feat = build_feature_matrix(train_raw)
+    test_feat = build_feature_matrix(test_raw)
 
-    # Feature engineering using the best feature method
-    train_feat, feature_cols = best_config['feature_method']['func'](train_df, is_training=True)
+    # clean inf / NaN
+    for df_ in (train_feat, test_feat):
+        num_cols = df_.select_dtypes(include=[np.number]).columns
+        df_[num_cols] = df_[num_cols].replace([np.inf, -np.inf], np.nan)
+        df_.dropna(subset=["WIN_PCT"], inplace=True)
 
-    X_train = train_feat[feature_cols].values
+    feature_cols = best_config["feature_cols"]
+    feature_groups = best_config["feature_groups"]
+    model_config = best_config["model_config"]
+    preprocessor_config = best_config["preprocessor_config"]
+
+    print(f"\nUsing feature groups: {feature_groups}")
+    print(f"Number of features: {len(feature_cols)}")
+    print(f"Model: {model_config['type']} | Preprocessor: {preprocessor_config['type']}")
+
+    # Train
+    X_train = train_feat[feature_cols].copy()
     y_train = train_feat["WIN_PCT"].values
 
-    # Apply preprocessor (re-fit on full training data)
-    preprocessor = best_config['preprocessor']
+    num_cols_train = X_train.select_dtypes(include=[np.number]).columns
+    X_train[num_cols_train] = X_train[num_cols_train].replace([np.inf, -np.inf], np.nan)
+    train_means = X_train.mean(axis=0)
+    X_train = X_train.fillna(train_means)
+
+    preprocessor = PreprocessorFactory.create_preprocessor(preprocessor_config)
     if preprocessor is not None:
-        X_train = preprocessor.fit_transform(X_train)
+        X_train_proc = preprocessor.fit_transform(X_train)
+    else:
+        X_train_proc = X_train.values
 
-    # Train final model instance from the best config
-    final_model = ModelFactory.create_model(best_config['model_config'])
-    final_model.fit(X_train, y_train)
+    final_model = ModelFactory.create_model(model_config)
+    final_model.fit(X_train_proc, y_train)
 
-    # Generate detailed predictions for each holdout season
     all_season_results = []
 
     for target_season in HOLDOUT_SEASONS:
         print(f"\n{'=' * 50}")
-        print(f"SEASON: {target_season}")
-        print('=' * 50)
+        print(f"SEASON: {target_season} (GLOBAL BEST)")
+        print("=" * 50)
 
-        test_season_df = test_df[test_df["Season"] == target_season].copy()
-        if test_season_df.empty:
+        season_df = test_feat[test_feat["Season"] == target_season].copy()
+        if season_df.empty:
             continue
 
-        # Build features for this season
-        test_feat, _ = best_config['feature_method']['func'](test_season_df, is_training=False, train_df=train_df)
+        X_test = season_df[feature_cols].copy()
+        num_cols_test = X_test.select_dtypes(include=[np.number]).columns
+        X_test[num_cols_test] = X_test[num_cols_test].replace([np.inf, -np.inf], np.nan)
+        X_test = X_test.fillna(train_means)
 
-        # Make sure test features contain all columns used in training
-        for col in feature_cols:
-            if col not in test_feat.columns:
-                test_feat[col] = 0
-
-        X_test = test_feat[feature_cols].values
         if preprocessor is not None:
-            X_test = preprocessor.transform(X_test)
+            X_test_proc = preprocessor.transform(X_test)
+        else:
+            X_test_proc = X_test.values
 
-        # Predict ranking score
-        test_pred = final_model.predict(X_test)
-        test_feat["PRED_SCORE"] = test_pred
+        test_pred = final_model.predict(X_test_proc)
+        season_df["PRED_SCORE"] = test_pred
 
-        # Evaluate season-level ranking metrics
-        metrics = evaluate_predictions(test_feat, true_col="WIN_PCT", pred_col="PRED_SCORE")
+        eval_df = season_df.dropna(subset=["WIN_PCT"]).copy()
+        if len(eval_df) == 0:
+            continue
+
+        metrics = evaluate_predictions(eval_df, true_col="WIN_PCT", pred_col="PRED_SCORE")
         all_season_results.append(metrics)
 
-        print(f"\nPerformance Metrics:")
+        print("\nPerformance Metrics:")
         print(f"  Exact accuracy: {metrics['exact_rank_acc']:.4f}")
         print(f"  Within 1 rank: {metrics['within1_rank_acc']:.4f}")
         print(f"  Within 2 ranks: {metrics['within2_rank_acc']:.4f}")
 
-        # Add ranking columns for summary printing
-        test_feat["PRED_RANK"] = test_feat["PRED_SCORE"].rank(method="min", ascending=False).astype(int)
-        test_feat["TRUE_RANK"] = test_feat["WIN_PCT"].rank(method="min", ascending=False).astype(int)
-        test_feat["RANK_DIFF"] = test_feat["PRED_RANK"] - test_feat["TRUE_RANK"]
+        # 排名打印
+        season_df["PRED_RANK"] = season_df["PRED_SCORE"].rank(method="min", ascending=False).astype(int)
+        season_df["TRUE_RANK"] = season_df["WIN_PCT"].rank(method="min", ascending=False).astype(int)
+        season_df["RANK_DIFF"] = season_df["PRED_RANK"] - season_df["TRUE_RANK"]
 
-        # Sort by predicted rank
-        test_feat_sorted = test_feat.sort_values("PRED_RANK")
+        season_sorted = season_df.sort_values("PRED_RANK")
 
-        print(f"\nFull Ranking Predictions:")
+        print("\nFull Ranking Predictions:")
         print("-" * 70)
         print(f"{'Pred':^5} {'Actual':^6} {'Diff':^6} {'Team':^20} {'Pred':^8} {'Actual':^8}")
         print("-" * 70)
 
-        correct_count = 0
-        for _, row in test_feat_sorted.iterrows():
-            rank_diff = row["RANK_DIFF"]
-            diff_symbol = "✓" if abs(rank_diff) <= 1 else "✗"
-            if abs(rank_diff) <= 1:
-                correct_count += 1
-
-            print(f"{row['PRED_RANK']:^5} {row['TRUE_RANK']:^6} {f'{diff_symbol}{rank_diff:+2d}':^6} "
-                  f"{row['Team']:20s} {row['PRED_SCORE']:^8.3f} {row['WIN_PCT']:^8.3f}")
+        correct_within1 = 0
+        for _, row in season_sorted.iterrows():
+            rd = row["RANK_DIFF"]
+            diff_symbol = "✓" if abs(rd) <= 1 else "✗"
+            if abs(rd) <= 1:
+                correct_within1 += 1
+            print(
+                f"{row['PRED_RANK']:^5} {row['TRUE_RANK']:^6} {f'{diff_symbol}{rd:+2d}':^6} "
+                f"{row['Team']:20s} {row['PRED_SCORE']:^8.3f} {row['WIN_PCT']:^8.3f}"
+            )
 
         print("-" * 70)
-        print(f"Correct within 1 rank: {correct_count}/{len(test_feat)} = {correct_count / len(test_feat):.2%}")
+        print(f"Correct within 1 rank: {correct_within1}/{len(season_sorted)} "
+              f"= {correct_within1 / len(season_sorted):.2%}")
 
-        # Save detailed per-season predictions to CSV
-        pred_dir = "best_predictions"
-        os.makedirs(pred_dir, exist_ok=True)
+        out_dir = "best_predictions"
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, f"global_best_{target_season}_detailed.csv")
+        season_sorted.to_csv(out_path, index=False)
+        print(f"\nDetailed predictions saved to: {out_path}")
 
-        output_path = os.path.join(pred_dir, f"{target_season}_detailed.csv")
-        test_feat.to_csv(output_path, index=False)
-        print(f"\nDetailed predictions saved to: {output_path}")
-
-    # Compute and print average performance across all holdout seasons
-    if all_season_results:
-        avg_exact = np.mean([r["exact_rank_acc"] for r in all_season_results])
-        avg_within1 = np.mean([r["within1_rank_acc"] for r in all_season_results])
-
-        print("\n" + "=" * 80)
-        print("FINAL AVERAGE RESULTS")
-        print("=" * 80)
-        print(f"Average Exact accuracy: {avg_exact:.4f}")
-        print(f"Average Within 1 rank: {avg_within1:.4f}")
-
-        if avg_exact >= TARGET_EXACT and avg_within1 >= TARGET_WITHIN1:
-            print(f"\nSUCCESS: Both targets achieved! 🎉")
-        else:
-            print(f"\nTargets not fully achieved:")
-            print(f"  Exact: {avg_exact:.2%} (target: {TARGET_EXACT * 100:.0f}%)")
-            print(f"  Within1: {avg_within1:.2%} (target: {TARGET_WITHIN1 * 100:.0f}%)")
+    return all_season_results
 
 
 # ========== Analyze optimization history ==========
 def analyze_history(history):
-    """Analyze the historical optimization results from the random search."""
     if not history:
+        print("No history to analyze.")
         return
 
     print("\n" + "=" * 80)
@@ -726,50 +691,84 @@ def analyze_history(history):
 
     history_df = pd.DataFrame(history)
 
-    # Group by feature method
-    print("\nBy Feature Method:")
+    print("\nBy Feature Groups:")
     print("-" * 40)
-    for method, group in history_df.groupby('feature_method'):
-        print(f"\n{method}:")
+    for fg, group in history_df.groupby("feature_groups"):
+        print(f"\n{fg}:")
         print(f"  Count: {len(group)}")
         print(f"  Avg Test Exact: {group['test_exact'].mean():.4f}")
         print(f"  Avg Test Within1: {group['test_within1'].mean():.4f}")
+        print(f"  Avg Test Within2: {group['test_within2'].mean():.4f}")
         print(f"  Best Overall: {group['test_overall'].max():.4f}")
 
-    # Group by model type
     print("\nBy Model Type:")
     print("-" * 40)
-    for model_type, group in history_df.groupby('model_type'):
-        print(f"\n{model_type}:")
+    for mt, group in history_df.groupby("model_type"):
+        print(f"\n{mt}:")
         print(f"  Count: {len(group)}")
         print(f"  Avg Test Exact: {group['test_exact'].mean():.4f}")
         print(f"  Avg Test Within1: {group['test_within1'].mean():.4f}")
+        print(f"  Avg Test Within2: {group['test_within2'].mean():.4f}")
 
-    # Top-10 configurations by overall test score
-    print("\nTop 10 Best Performances:")
+    print("\nTop 10 Best Performances (by overall):")
     print("-" * 40)
-    top_results = history_df.sort_values('test_overall', ascending=False).head(10)
-    for i, (_, row) in enumerate(top_results.iterrows(), 1):
-        print(f"{i:2d}. Iter {row['iteration']:3d}: "
-              f"Feat={row['feature_method']:10s} "
-              f"Model={row['model_type']:10s} "
-              f"Exact={row['test_exact']:.3f} "
-              f"Within1={row['test_within1']:.3f} "
-              f"Overall={row['test_overall']:.3f}")
+    top = history_df.sort_values("test_overall", ascending=False).head(10)
+    for i, (_, row) in enumerate(top.iterrows(), 1):
+        print(
+            f"{i:2d}. Iter {int(row['iteration']):4d}: "
+            f"FeatGroups={row['feature_groups']:25s} "
+            f"Model={row['model_type']:8s} "
+            f"Exact={row['test_exact']:.3f} "
+            f"Within1={row['test_within1']:.3f} "
+            f"Within2={row['test_within2']:.3f} "
+            f"Overall={row['test_overall']:.3f}"
+        )
+
+    results_dir = "search_results"
+    os.makedirs(results_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+ 
+    csv_path_all = os.path.join(results_dir, f"model_search_history_{ts}.csv")
+    history_df.to_csv(csv_path_all, index=False, encoding="utf-8")
+    print(f"\nFull model search history saved to: {csv_path_all}")
+
+    filtered = history_df[history_df["test_exact"] > 0.4].copy()
+    if not filtered.empty:
+        if "test_overall" in filtered.columns:
+            filtered = filtered.drop(columns=["test_overall"])
+        csv_path_good = os.path.join(results_dir, f"model_search_history_exact_gt40_{ts}.csv")
+        filtered.to_csv(csv_path_good, index=False, encoding="utf-8")
+        print(f"Filtered (test_exact > 0.4) history saved to: {csv_path_good}")
+    else:
+        print("No runs with test_exact > 0.4, so no filtered CSV created.")
 
 
-# ========== Main entry point ==========
+# ========== Main ==========
 if __name__ == "__main__":
-    # Run the auto-optimization routine
     best_config, history = auto_optimize()
 
-    # Analyze search history
     analyze_history(history)
 
     if best_config:
-        # Run detailed predictions with the best configuration
         detailed_predictions_with_best(best_config)
 
-        # Save best configuration info
         config_dir = "best_config"
         os.makedirs(config_dir, exist_ok=True)
+
+        best_summary = {
+            "iteration": best_config["iteration"],
+            "feature_groups": best_config["feature_groups"],
+            "feature_cols": best_config["feature_cols"],
+            "model_type": best_config["model_config"]["type"],
+            "model_params": best_config["model_config"]["config"],
+            "preprocessor": best_config["preprocessor_config"]["type"],
+            "avg_exact": best_config["avg_exact"],
+            "avg_within1": best_config["avg_within1"],
+            "avg_overall": best_config["avg_overall"],
+            "holdout_seasons": HOLDOUT_SEASONS,
+        }
+
+        best_path = os.path.join(config_dir, "best_config_summary.json")
+        with open(best_path, "w", encoding="utf-8") as f:
+            json.dump(best_summary, f, indent=2)
+        print(f"\nBest config summary saved to: {best_path}")

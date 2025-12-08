@@ -1,0 +1,60 @@
+{
+  "iteration": 35,
+  "feature_groups": [
+    "basic_box",
+    "basic_eff",
+    "four_factors",
+    "trend",
+    "rolling_box",
+    "full_box"
+  ],
+  "feature_cols": [
+    "2P",
+    "2PA",
+    "3P",
+    "3PA",
+    "AST",
+    "AST_3Y_AVG",
+    "AST_TO_RATIO",
+    "BLK",
+    "BLK_3Y_AVG",
+    "DRB",
+    "EFG_FACTOR",
+    "EFG_PCT",
+    "FG",
+    "FGA",
+    "FT",
+    "FTA",
+    "FTR_FACTOR",
+    "ORB",
+    "OREB_FACTOR",
+    "PF",
+    "PREV_WIN_PCT",
+    "PTS",
+    "PTS_3Y_AVG",
+    "STL",
+    "STL_3Y_AVG",
+    "TOV",
+    "TOV_FACTOR",
+    "TRB",
+    "TRB_3Y_AVG",
+    "TS_PCT",
+    "WIN_PCT_3Y_AVG",
+    "WIN_PCT_5Y_AVG",
+    "WIN_PCT_TREND"
+  ],
+  "model_type": "gb",
+  "model_params": {
+    "n_estimators": 200,
+    "learning_rate": 0.01,
+    "max_depth": 3
+  },
+  "preprocessor": "standard",
+  "avg_exact": 0.5833333333333334,
+  "avg_within1": 0.8166666666666667,
+  "avg_overall": 0.7466666666666666,
+  "holdout_seasons": [
+    "2023-2024",
+    "2024-2025"
+  ]
+}
