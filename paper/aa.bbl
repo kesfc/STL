@@ -1,26 +1,29 @@
-\begin{thebibliography}{5}
-\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\begin{thebibliography}{}
 
-\bibitem[{{FiveThirtyEight}(2015)}]{silver2015elo}
-{FiveThirtyEight}. 2015, How Our {NBA} Predictions Work,
-  \url{https://fivethirtyeight.com/features/how-our-nba-predictions-work/},
-  accessed: 2025-12-07
+\bibitem[{FiveThirtyEight}, 2015]{silver2015elo}
+{FiveThirtyEight} (2015).
+\newblock How our {NBA} predictions work.
+\newblock \url{https://fivethirtyeight.com/features/how-our-nba-predictions-work/}.
+\newblock Accessed: 2025-12-07.
 
-\bibitem[{Loeffelholz {et~al.}(2009)Loeffelholz, Bednar, \&
-  Bauer}]{loeffelholz2009nba}
-Loeffelholz, B., Bednar, E., \& Bauer, M. 2009, Journal of Quantitative
-  Analysis in Sports, 5
+\bibitem[Loeffelholz et~al., 2009]{loeffelholz2009nba}
+Loeffelholz, B., Bednar, E., and Bauer, M. (2009).
+\newblock Predicting {NBA} games using neural networks.
+\newblock {\em Journal of Quantitative Analysis in Sports}, 5(3).
 
-\bibitem[{Oliver(2004)}]{oliver2004basketball}
-Oliver, D. 2004, Basketball on Paper: Rules and Tools for Performance Analysis
-  (Washington, DC: Potomac Books)
+\bibitem[Oliver, 2004]{oliver2004basketball}
+Oliver, D. (2004).
+\newblock {\em Basketball on Paper: Rules and Tools for Performance Analysis}.
+\newblock Potomac Books, Washington, DC.
 
-\bibitem[{Sarlis \& Tjortjis(2020)}]{sarlis2020sports}
-Sarlis, P. \& Tjortjis, C. 2020, Information Systems, 93, 101562
+\bibitem[Sarlis and Tjortjis, 2020]{sarlis2020sports}
+Sarlis, P. and Tjortjis, C. (2020).
+\newblock Sports analytics: A systematic review of basketball player and team evaluation.
+\newblock {\em Information Systems}, 93:101562.
 
-\bibitem[{Yang(2015)}]{yang2015nba}
-Yang, J. 2015, Predicting Regular Season Results of {NBA} Teams Based on
-  Regression Analysis of Common Basketball Statistics, UC Berkeley Statistics
-  Project
+\bibitem[Yang, 2015]{yang2015nba}
+Yang, J. (2015).
+\newblock Predicting regular season results of {NBA} teams based on regression analysis of common basketball statistics.
+\newblock UC Berkeley Statistics Project.
 
 \end{thebibliography}
