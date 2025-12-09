@@ -37,8 +37,9 @@ From Historical Standings to Player-level Forecasts}
 % ABSTRACT
 %-----------------------------------------------------------------
 \abstract
-{Publicly available NBA box-score and standings data make it possible to build detailed models of team and player performance, yet many forecasting systems still rely on simple team-level summaries such as past wins or win percentage. In this project, we systematically compare team-centric and player-centric pipelines for predicting regular-season team performance and related player outcomes over roughly two decades of NBA data. First, we build a historical-standings baseline that regresses team win percentage on features constructed from past seasons (previous win rate, rolling 3-year and 5-year averages, and short-term trends). Second, we train player-level models on season-long box-score statistics to: (i) predict All-Star selection, (ii) predict whether a player receives All-NBA/MVP–related honors, and (iii) classify players into broad positional groups (Guard / Wing / Big). Third, we aggregate player statistics back to the team level to construct player-informed team features and use these to predict next-season team win percentage. Finally, we implement an automatic model search over feature groups, preprocessing schemes, and regression algorithms, selecting configurations that maximize ranking-based metrics on the two most recent seasons. Across held-out seasons, historical win–trend models already achieve high $R^2$ and correlation with true win percentage, while player-aggregated models and the auto-optimized pipeline further improve ranking accuracy for recent seasons. Our results suggest that simple team-level trends are strong baselines, but player-level modeling and automated pipeline search add value for capturing league-wide standings and connecting roster composition to expected team performance.}
-
+{Publicly available NBA box-score and standings data make it possible to build detailed models of team and player performance, yet many forecasting systems rely on simple team-level summaries such as past wins or win percentage. In this project, we systematically compare team-centric and player-centric pipelines for predicting regular-season team performance and related player outcomes over roughly two decades of NBA data. First, we build a historical-standings baseline that regresses team win percentage on features constructed from past seasons (previous win rate, rolling 3-year and 5-year averages, and short-term trends). Second, we train player-level models on season-long box-score statistics to: (i) predict All-Star selection, (ii) predict whether a player receives All-NBA/MVP--related honors, and (iii) classify players into broad positional groups (Guard / Wing / Big). Next, we roll these player predictions back up to the team level by aggregating player statistics into player-informed team features. These, combined with team box-score summaries, allow us to forecast each season’s win percentage and overall league ranking.
+Finally, we implement an automatic model search over feature groups, preprocessing schemes, and regression algorithms, selecting configurations that maximize ranking-based metrics on the two most recent seasons. 
+Across held-out years, we find that simple models based on historical win trends achieve strong performance, with high $R^2$ and tight correlation with true win percentage. However, incorporating player-level information and running an automated pipeline search improves ranking accuracy, especially in recent seasons and for teams undergoing major roster changes. Our results suggest that while team-level trends serve as strong baselines, player-level modeling and automated pipeline search add value for capturing league-wide standings and connecting roster composition to expected team performance.}
 \keywords{basketball --
           sports analytics --
           machine learning --
@@ -50,15 +51,15 @@ From Historical Standings to Player-level Forecasts}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 
-In the modern NBA, decisions about roster construction, trades, and minutes allocation are increasingly driven by data. Teams, media, and fans all care about the same core question: given what we know about past seasons, how well can we forecast future team performance and key player outcomes? With two decades of publicly available box-score and standings data, it is now possible to go beyond simple narratives and rigorously test which modeling choices actually help for this kind of prediction.
+In today’s NBA, decisions about roster construction, trades, and playing time rely heavily on data. Teams, media, and fans all care about the same question: given everything we know from past seasons, how well can we predict regular-season performance and key player outcomes in a way that’s both accurate and easy to understand? With nearly twenty years of publicly available box-score data and standings, we can now move beyond simple narratives and test which modeling choices actually help and which ones are unnecessary.
 
-A natural starting point is a team-centric view: treat each franchise as a single unit and summarize its history through wins, losses, and a small set of trend features. This mirrors many real-world forecasting systems that rely on past win percentage and simple trends to project future success. Such models are easy to interpret and compute, but they ignore who is actually on the roster and how individual players evolve over time.
+A natural first step is to look at each team as a single unit and summarize their history using wins, losses, and a few simple trend features. Similar to many real-world forecasting systems,this approach uses past win percentage and simple trends to project future success. Such models are easy to interpret and compute, but they ignore who is actually on the roster and how individual players evolve in their roles over time. They also struggle with structural changes in a team like a major trade or losing a star to injury.
 
-Complementing this is a player-centric view, where we model players directly and then reason upward to teams. Season-level player box-score statistics capture scoring, playmaking, defense, and usage patterns that drive both individual recognition and team success. In this project, we use player data to tackle three prediction problems: (1) identifying All-Star–caliber seasons, (2) predicting whether a player will receive All-NBA or MVP–related honors, and (3) classifying players into broad positional groups (Guard / Wing / Big). These tasks test whether basic box-score data is sufficient to recover meaningful structure in how the league evaluates and uses players.
+A player-focused perspective fills in those gaps. Season-level box-score data tracks scoring, playmaking, defensive impact, and usage patterns that include both individual contributions and team results. In this project, we use player data to tackle three prediction problems: (1) identifying All-Star–caliber seasons, (2) predicting whether a player will receive All-NBA or MVP–related honors, and (3) classifying players into broad positional groups (Guard / Wing / Big). These tasks test whether basic box-score data is sufficient to provide meaningful information for how the league evaluates and uses players.
 
 We then link the player and team perspectives by aggregating player statistics back to the team level and combining them with historical win–trend features. On top of this team-level table, we build and evaluate a variety of regression pipelines to predict team win percentage and resulting standings. Rather than handpicking a single model, we run an automatic search over feature groups, preprocessing schemes, and algorithms and select configurations that perform best on ranking-based metrics for the final two seasons.
 
-Together, these components allow us to ask a concrete question: when is a simple team-level win–trend baseline “good enough,” and when do richer player-level features and automated model selection provide real gains in predicting how the NBA standings will shake out? This project aims to quantify that trade-off and clarify how much value is added by moving from coarse team summaries to more detailed, player-informed representations.
+Together, these components allow us to ask the question: when is a simple team-level win–trend baseline “good enough,” and when are player-level features and automated models more effective in predicting how the NBA standings? This project aims to quantify that trade-off and clarify how much value is added by moving from direct team summaries to more detailed, player-informed representations in NBA data analysis.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Prior Literature}
@@ -406,84 +407,64 @@ best model relative to the simpler standings-only baseline.
 \section{Evaluation, user testing, and iteration}
 \label{sec:testing}
 
-Although our project does not have deployed “end users,” we still treat
-evaluation as a user-centered process. The intended users are basketball
-fans and analysts who care about both accuracy and interpretability in
+Even though our project is not deployed, we still treat evaluation as a
+user-centered process. Our target users are basketball fans and analysts
+who want models that are both accurate and easy to interpret in
 basketball terms (wins, rankings, awards, positions).
 
-\subsection{Temporal train--test protocol}
+\subsection{Train--test split based on time} 
 
-Across all four tasks we use temporally separated train and test sets to
-approximate realistic forecasting. Rather than randomly splitting within
-a season, we train on earlier seasons and evaluate on the most recent:
-
-\begin{itemize}
-  \item \textbf{Team-level baselines (Tasks 1, 3, 4):}
-  we train on all seasons up to 2022--2023 and treat 2023--2024 and
-  2024--2025 as held-out test seasons. Feature engineering (e.g., rolling
-  averages) uses only past seasons for each team.
-  \item \textbf{Player-level classification (Task 2):}
-  for All-Star and MVP/All-NBA prediction we train on earlier seasons
-  and hold out the last three. For position prediction we train on
-  seasons up to 2022--2023 and test from 2023--2024 onward.
-\end{itemize}
-
-\subsection{Metrics by task and iteration}
-
-We use different metrics for team-level and player-level tasks, as
-outlined in Section~\ref{sec:notation}, and we track how these metrics
-change as we iterate on features and models.
-
-For the standings-only baseline and the player-to-team aggregation
-model, we monitor MAE, RMSE, $R^2$, and correlations on the two most
-recent seasons. Once we observed that a small set of trend features
-already achieved low MAE and high $R^2$, we fixed this trend-based
-baseline as a strong reference point.
-
-In the auto-tuned team model, we focus on ranking metrics (ExactAcc,
-Within1, Within2). We define a combined score
-that emphasizes Within1 and use the average of these metrics across the
-two held-out seasons as the optimizer’s objective.
-
-For the All-Star and MVP/All-NBA tasks, early prototypes that optimized
-only accuracy performed poorly on the rare positive class. Inspecting
-classification reports and confusion matrices revealed that the model
-often predicted “no award” for almost everyone. In response, we
-introduced class weighting in the MVP model, monitored positive-class
-recall and F1 as primary metrics, and adjusted thresholds to balance
-precision and recall.
-
-For the position classifier, comparing against the “always Guard”
-baseline and inspecting confusion matrices showed that Guards and Bigs
-were learned relatively well, while Wings were harder to distinguish.
-This guided feature engineering toward adding per-36 rebounding,
-shooting volume, and usage-related features to better separate wings
-from guard-sized and big-sized players.
-
-For the player-to-team aggregation pipeline, we compared MAE, RMSE, and
-correlations to the standings-only baseline on the same held-out
-seasons. High-dimensional variants did not clearly improve these metrics
-and were difficult to interpret, so we kept the simpler aggregation that
-sums player stats and recomputes standard team-level efficiencies.
-
-\subsection{Informal user feedback}
-
-We gathered informal feedback from classmates who follow the NBA by
-showing:
+To mimic realistic forecasting, all tasks use time-based splits instead
+of random splits within a season:
 
 \begin{itemize}
-  \item side-by-side tables of predicted vs.\ actual rankings,
-  \item scatter plots of predicted vs.\ actual rankings, and
-  \item examples of All-Star and MVP predictions with underlying
-        box-score features.
+  \item \textbf{Team-level tasks (1, 3, 4):} we train on seasons up to
+  2022--2023 and test on 2023--2024 and 2024--2025. Trend features
+  (e.g., rolling averages) use only past seasons for each team.
+  \item \textbf{Player-level task (2):} we train on earlier seasons and
+  hold out recent ones. For position prediction, we again train up to
+  2022--2023 and test on later seasons.
 \end{itemize}
 
-They found the “within one rank” metric and ranking scatter plots more
-intuitive than raw error tables, and preferred models whose mistakes
-were small shifts in rank rather than large misorderings. This feedback
-reinforced our choice to emphasize ranking metrics in the team-level
-models and to present classification performance with per-class
-precision and recall, not just overall accuracy.
+This protocol ensures that models never see future information and
+matches how fans would use the system in practice.
+
+\subsection{Metrics and iteration by task}
+
+We choose metrics that match what our users care about and use them to
+guide iteration.
+
+For the standings-only baseline and the player-aggregated team model, we
+track MAE, RMSE, $R^2$, and correlations on the two held-out seasons.
+After seeing that a small set of win–loss trend features already gave
+low error and high $R^2$, we fixed this trend model as our main
+baseline model.
+
+For the team model, our main goal is to get the rankings
+right. We therefore focus on ExactAcc, Within1, and Within2, and use a
+combined score that emphasizes Within1 as the optimizer’s objective. We
+keep configurations that consistently improve these ranking metrics over
+the standings baseline.
+
+For All-Star and MVP/All-NBA prediction, early models with only accuracy
+looked good overall but almost never predicted awards. Confusion
+matrices showed that the model predicted “no award” for almost everyone.
+We then added class weights, monitored positive-class recall and F1, and
+adjusted thresholds until we achieved a better precision–recall tradeoff
+on the award classes.
+
+For position prediction, we compare against an “always Guard” baseline
+and study confusion matrices. Guards and Bigs are learned reasonably
+well, but Wings are harder to separate. This pushed us to add
+per-36-minute rebounding, shooting volume, and usage-like features to
+make wing profiles more distinct.
+
+Finally, for the player-to-team aggregation pipeline, we compare MAE,
+RMSE, and correlations directly to the standings-only baseline. More
+complex, high-dimensional variants did not clearly improve these
+metrics and were harder to explain, so we kept a simpler aggregation
+that sums player stats and recomputes standard team-level efficiencies.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Findings}
@@ -608,11 +589,11 @@ explanations for forecasted outcomes.
 \section{Discussion}
 \label{sec:discussion}
 
-Our project set out to build a forecasting pipeline that is both
+Our project aims to build a forecasting pipeline that is both
 reasonably accurate and understandable for basketball fans and analysts.
 The findings support three main contributions:
 (i) quantifying how far simple standings-based models can go,
-(ii) showing where richer team-level modeling and automated search add
+(ii) showing where more complicated team-level modeling and automated search add
 value, and
 (iii) demonstrating how player-level models provide complementary,
 interpretable views of team strength.
@@ -620,53 +601,41 @@ interpretable views of team strength.
 \subsection{What simple baselines already capture}
 
 A first takeaway is how strong the historical-standings baseline is.
-Using only past win percentage and a few trend features, the baseline
+Using only past win percentage and trend features, the baseline
 model achieves $\text{MAE} \approx 0.03$--$0.04$ and
 $R^2 \approx 0.92$--$0.93$ on the two most recent seasons, with
 correlations above $0.92$.
-Much of next season’s variance can be explained by
+Much of future performance change can be explained by
 recent team performance alone: rosters, coaching staffs, and
-organizational strategies tend to change gradually, so win totals show a
-high degree of inertia.
-For users who just want a quick, back-of-the-envelope forecast, this
-type of model already provides a solid answer.
+organizational strategies tend to change gradually, so win totals does not change dramatically for most teams.
+For users who just want a quick and straightfoward  forecast, this
+type of model is sufficient.
 
-\subsection{Where richer team modeling helps}
+\subsection{Where harder team modeling truly helps}
 
 The automated model and feature search demonstrates that carefully
-chosen team-level features can further improve ranking quality.
+chosen team-level features can further improve ranking accuracy.
 The gradient boosting model built on
 \texttt{basic\_box}, \texttt{basic\_eff}, \texttt{rolling\_box}, and
 \texttt{trend} features attains
 $63.3\%$ exact rank accuracy and more than $90\%$ within--2 across the
 two held-out seasons.
 This is a clear gain over relying only on last year’s record: the model
-exploits information about scoring volume, efficiency, rebounding,
-playmaking, and long-term trends to sort teams more precisely.
+uses information about scoring volume, efficiency, rebounding,
+playmaking, and long-term trends to rank teams more precisely.
 
-At the same time, the gains are not unbounded.
-In some seasons the optimized model substantially improves exact rank
-accuracy; in others it mainly refines the ordering within tiers.
-This suggests a design principle for fan-facing tools: adding complexity
-beyond simple standings is most useful when grounded in interpretable
-basketball quantities rather than opaque feature engineering.
+However, these improvements have limits. In some seasons, the optimized model does a much better job at predicting the exact rankings, but in others it only shuffles teams within the same general tier.
+This suggests a design principle for fan-facing predicting tools: adding model complexity is only  helpful when the features are clear and interpretable rather than pure feature engineering that is not related to basketball at all.
 
 \subsection{What player-level models add}
 
-The player-level tasks highlight a different dimension.
-The All-Star and All-NBA/MVP classifiers reach high accuracy and strong
-recall on heavily imbalanced labels, indicating that basic box-score
-profiles contain enough information to recover most “star seasons.”
-The position classifier shows that Guards and Bigs occupy relatively
-distinct statistical regions, while Wings are more ambiguous, sitting
-between backcourt and frontcourt profiles.
+The player-level tasks point to different side of the problem.
+Our All-Star and All-NBA/MVP classifiers reach high accuracy and strong recall despite the labels being heavily imbalanced, which shows that basic box-score stats already contain enough information to identify most “star seasons.”
+The position classifier also reveals clear patterns: Guards and Bigs live in fairly distinct statistical spaces, while Wings are more mixed and sit between backcourt and frontcourt styles.
 These models do not directly improve team-level $R^2$, but they clarify
 how the system “thinks’’ about individual roles and star power.
 
-Aggregating player statistics back to the team level yields performance
-comparable to the standings baseline and clarifies where that baseline
-may break: when a roster changes dramatically or when a team’s star
-power collapses or spikes.
+When we aggregate player statistics back to the team level, we get performance that is roughly on par with the standings baseline. More importantly, this approach highlights where the baseline can fail: when a roster changes dramatically or when a team loses stars to injuries.
 In those settings, being able to trace a forecast back to specific
 players, aging curves, and usage patterns gives analysts and fans a more
 satisfying narrative than team-only regressions can provide.
@@ -677,13 +646,12 @@ From a design perspective, the comparison between models illustrates how
 to balance simplicity, accuracy, and transparency:
 
 \begin{itemize}
-    \item The standings baseline is easy to explain and serves as a
-          robust default.
-    \item The feature-rich team model offers a measurable boost in
-          ranking accuracy while still using familiar statistics.
-    \item The player-level models and player-to-team aggregation provide
-          narratives about \emph{who} is driving a forecast, even when
-          the overall win prediction is numerically similar to the
+    \item The standings baseline is easy to explain and can serve as a
+          robust default method.
+    \item The richer feature-complex team model improves
+          ranking accuracy but still using similar statistics.
+    \item The player-level models and player-to-team aggregation give
+          better interpretability about \emph{who} drives the forecast, even the overall win prediction is numerically close to the
           baseline.
 \end{itemize}
 
