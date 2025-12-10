@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex aa"] 1765333949.48885 "aa.aux" "aa.bbl" "aa" 1765333953.31788 0
+["bibtex aa"] 1765333949.48885 "aa.aux" "aa.bbl" "aa" 1765334585.55776 0
   "./refs.bib" 1765114070 1384 3a2674a1f3f7204411139deaa0803bb5 ""
   "C:/Users/kevin/AppData/Local/Programs/MiKTeX/bibtex/bst/bibtex/apalike.bst" 1291972791 24635 604dafcc79f521a11ea73e506e1fbd98 ""
-  "aa.aux" 1765333952 19863 450102f297b2618b928476234adc71b9 "pdflatex"
+  "aa.aux" 1765334584 19863 450102f297b2618b928476234adc71b9 "pdflatex"
   (generated)
   "aa.bbl"
   "aa.blg"
   (rewritten before read)
-["pdflatex"] 1765333949.94329 "c:/Users/kevin/Documents/GitHub/STL/paper/aa.tex" "aa.pdf" "aa" 1765333953.31873 0
+["pdflatex"] 1765334582.03807 "c:/Users/kevin/Documents/GitHub/STL/paper/aa.tex" "aa.pdf" "aa" 1765334585.5586 0
   "C:/Users/kevin/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1765050757 95752 63f9c53e6bf54161ebb45148bbe88494 ""
   "C:/Users/kevin/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1765050657 13333511 6bfceeb335825831fa512e7f7da96677 ""
   "C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc" 1458473887 4993 80dc9bab7f31fb78a000ccfed0e27cab ""
@@ -160,12 +160,12 @@
   "C:/Users/kevin/AppData/Local/Programs/MiKTeX/tex/latex/txfonts/utxsyb.fd" 977342760 310 8c5467c8932c259af51b0f116c9734bd ""
   "C:/Users/kevin/AppData/Local/Programs/MiKTeX/tex/latex/txfonts/utxsyc.fd" 977342760 310 4b5d6fe830337242ef847b3bff48ba21 ""
   "C:/Users/kevin/AppData/Local/Programs/MiKTeX/tex/latex/url/url.sty" 1388490452 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
-  "aa.aux" 1765333952 19863 450102f297b2618b928476234adc71b9 "pdflatex"
+  "aa.aux" 1765334584 19863 450102f297b2618b928476234adc71b9 "pdflatex"
   "aa.bbl" 1765333949 1179 4cd99660c2a631eef5f23eae0a5e5d49 "bibtex aa"
   "aa.cls" 1765333887 64704 97a047200f1a15d25d92b18a2099cc80 ""
-  "aa.out" 1765333952 7682 8a7d0651f9985e545b2bfa5f64d6dfc1 "pdflatex"
-  "aa.tex" 1765333945 122150 cb1d606b8bb9c0aa4e6d711b398de49a ""
-  "c:/Users/kevin/Documents/GitHub/STL/paper/aa.tex" 1765333945 122150 cb1d606b8bb9c0aa4e6d711b398de49a ""
+  "aa.out" 1765334584 7682 8a7d0651f9985e545b2bfa5f64d6dfc1 "pdflatex"
+  "aa.tex" 1765334581 122158 e40c315cc2a820daf16fa47a4225deb6 ""
+  "c:/Users/kevin/Documents/GitHub/STL/paper/aa.tex" 1765334581 122158 e40c315cc2a820daf16fa47a4225deb6 ""
   "lineno.sty" 1765050023 151723 f406be88dbdad6c97fb774bd975d0393 ""
   "linenoaa.sty" 1765050022 4221 64fc978f7ff26cff65f5a8f1adc2a33b ""
   "season_2023_2024_rank_scatter.png" 1765156042 170075 1594cc94ce8c7926b89144cb5e8a6387 ""

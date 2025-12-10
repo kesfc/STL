@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.12.6)  9 DEC 2025 20:32
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.12.6)  9 DEC 2025 20:43
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -869,15 +869,15 @@ Package rerunfilecheck Info: File `aa.out' has not changed.
 (rerunfilecheck)             Checksum: 8A7D0651F9985E545B2BFA5F64D6DFC1;7682.
  ) 
 Here is how much of TeX's memory you used:
- 16687 strings out of 467871
- 267568 string characters out of 5418376
+ 16688 strings out of 467871
+ 267580 string characters out of 5418376
  792627 words of memory out of 5000000
- 45184 multiletter control sequences out of 15000+600000
- 715748 words of font info for 177 fonts, out of 8000000 for 9000
+ 45185 multiletter control sequences out of 15000+600000
+ 717403 words of font info for 178 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  87i,12n,93p,1967b,579s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/rtxb.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/rtxmi.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/rtxr.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/rtxr.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/t1xtt.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/txex.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/txsy.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/public/txfonts/txsyb.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/helvetic/uhvb8a.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/helvetic/uhvr8a.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/helvetic/uhvr8a.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmb8a.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmr8a.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmr8a.pfb><C:/Users/kevin/AppData/Local/Programs/MiKTeX/fonts/type1/urw/times/utmri8a.pfb>
-Output written on aa.pdf (10 pages, 466243 bytes).
+Output written on aa.pdf (10 pages, 466261 bytes).
 PDF statistics:
  350 PDF objects out of 1000 (max. 8388607)
  84 named destinations out of 1000 (max. 500000)
