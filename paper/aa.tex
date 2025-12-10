@@ -13,6 +13,11 @@
 % ==== 超链接包 ====
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 
+% Remove default A&A proof header on even pages
+\makeatletter
+\renewcommand*\aa@textidlineempty{}
+\makeatother
+
 \begin{document}
 
 \title{Predicting NBA Team Performance: \\
