@@ -9,12 +9,12 @@
 \usepackage{subcaption}
 \usepackage{lscape}
 \usepackage{placeins}
-\usepackage{indentfirst}
 
 % ==== 超链接包 ====
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 
 \begin{document}
+
 \title{Predicting NBA Team Performance: \\
 From Historical Standings to Player-level Forecasts}
 
@@ -675,26 +675,29 @@ our specific setting.
 First, we work entirely within the NBA and rely primarily on
 traditional box-score data plus simple roster metadata.
 We do not incorporate richer tracking data, play-by-play information,
-lineup context, or opponent metrics.
+lineup context, or opponent-adjusted metrics.
 As a result, both the team-level and player-level models may miss
-important aspects of defensive strategies, spacing and
-schemes that are not well captured by box-score
+important aspects of defensive impact, spacing, on/off effects, and
+scheme-specific roles that are not well captured by box-score
 statistics alone.
 
 Second, the player evolution components assume relatively smooth aging
 curves and largely linear dynamics in standard features.
-In reality, player trajectories can be nonlinear and
-injury-prone and are influenced by role changes, coaching shifts,
+In reality, player trajectories can be highly nonlinear and
+injury-prone, with abrupt jumps due to role changes, coaching shifts,
 or major trades.
-Our player-to-team aggregation method assumes that team strength is
-approximately the sum of individual contributions and does not explicitly model interaction
+Our player-to-team aggregation further assumes that team strength is
+approximately the sum of individual contributions after basic filtering
+(e.g., minutes thresholds), and does not explicitly model interaction
 effects such as lineup fit or coaching strategy.
 
-Third, our label choices and thresholds may introduce biases.
+Third, our label choices and thresholds introduce their own biases.
 All-Star and All-NBA/MVP indicators are influenced by media narratives,
-fan voting, and award rules. The extreme class imbalance means that
-small mistakes can caulead to big changes in precision and recall.
-Similarly, position labels are roughly categoried into three broad groups. This might overlook the finer role divisions that matter in modern
+fan voting, and award rules, and the extreme class imbalance means that
+small absolute errors can translate into large swings in precision and
+recall.
+Similarly, position labels are collapsed into three broad groups,
+obscuring finer-grained role distinctions that matter in modern
 positionless basketball.
 
 \subsection{Evaluation constraints}
@@ -703,55 +706,59 @@ On the evaluation side, we are constrained by the relatively small
 number of independent seasons.
 Even with rolling train--test splits, there are only so many
 non-overlapping temporal splits available.
-This makes it difficult to obtain very robust confidence intervals on
-performance differences and leads to the risk that some conclusions are
+This makes it difficult to obtain very tight confidence intervals on
+performance differences and raises the risk that some conclusions are
 specific to the recent era of NBA rules and play style.
 
 For the team-ranking task we evaluate on the two most recent seasons,
 which provides a realistic forecasting scenario but also means that our
 best-performing configuration is tuned to a small number of
 out-of-sample years.
+Likewise, our informal “user tests’’ involve a small, convenience
+sample of classmates; they provide useful qualitative feedback but not a
+controlled HCI study.
 
 Moreover, for the auto-tuned team-ranking model we implicitly use the
 same two held-out seasons both to select the best-performing
 configuration and to report its final performance. Although the test
 seasons are never used for training the underlying models, this reuse
-of the evaluation set as a model-selection objective introduces a small amount of leakage. 
-This means our Task 4 results are probably too optimistic, and a truly unbiased estimate of generalization
+of the evaluation set as a model-selection objective introduces a mild
+form of leakage: our reported metrics for Task~4 are likely to be
+somewhat optimistic, and a truly unbiased estimate of generalization
 would require fixing a configuration first and then evaluating it on
 additional, unseen future seasons.
 
 \subsection{Directions for future work}
 
-These limitations give several directions for improvement:
+These limitations suggest several directions for improvement:
 
 \begin{itemize}
-    \item \textbf{More data with details.}
-          Adding tracking data, play-by-play logs,
+    \item \textbf{Richer and more granular data.}
+          Incorporating tracking data, play-by-play logs,
           opponent-adjusted impact metrics, and explicit injury or
           availability information could help the models better capture
-          defense, spacing, and lineup information.
-    \item \textbf{More structured and intepretable models.}
-          Nonlinear or hierarchical methods could model player
-          development and team strength more accurately, while careful
-          feature design would help keep models understandable
-          to analysts and fans.
-    \item \textbf{Better evaluation and user studies.}
+          defense, spacing, and lineup context.
+    \item \textbf{More flexible but structured models.}
+          Exploring nonlinear or hierarchical models for player
+          trajectories and team strength, while constraining them with
+          interpretable feature sets, could relax smooth-aging and
+          additivity assumptions without sacrificing transparency.
+    \item \textbf{Richer evaluation and user studies.}
           Extending the evaluation to additional seasons, other
           leagues, or other sports would clarify how robust our design
           choices are.
           A more systematic user study with analysts and different types
           of fans could measure how model explanations affect trust and
           perceived usefulness.
-    \item \textbf{Interactive, user-facing interface designs.}
+    \item \textbf{Interactive, user-facing designs.}
           Building an interactive interface (e.g., allowing users to
           adjust hypothetical trades or injuries and see updated
-          forecasts) would test how well the models support real
+          forecasts) would test how well the pipeline supports real
           analytical workflows and what additional explanations are
           needed in practice.
 \end{itemize}
 
-Overall, this work is a first step toward combining
+Overall, our work should be viewed as a first step toward combining
 simple standings-based baselines, richer team-level features, and
 player-level reasoning in a way that is both quantitatively reasonable
 and accessible to basketball audiences.
@@ -760,16 +767,18 @@ and accessible to basketball audiences.
 \section{Conclusions}
 \label{sec:conclusion}
 
-We began with a simple question: when is a very simple
+We set out to ask a seemingly simple question: when is a very simple
 team-level model “good enough’’ for predicting NBA performance, and
-when is it worth investing in a more complex, player-centric pipeline? Our results point to three main takeaways.
+when is it worth investing in a more complex, player-centric pipeline?
 
-First, historical standings by themselves are a strong
+Our results point to three main takeaways.
+
+First, historical standings by themselves are a remarkably strong
 baseline.
-A large part of the variance in future win percentage can be explained
+A large share of the variance in future win percentage can be explained
 by past wins and simple trend features, especially for teams with
 relatively stable rosters and coaching situations.
-For many use cases, this kind of standings-based model
+For many quick-turnaround use cases, this kind of standings-based model
 offers a lightweight, easy-to-communicate forecast.
 
 Second, player-based pipelines matter most when teams undergo structural
@@ -777,9 +786,9 @@ change.
 When rosters shift substantially, a model that explicitly projects
 individual player trajectories and aggregates their contributions to the
 team level can improve ranking accuracy and, just as importantly, offer
-better explanations of \emph{why} a team is expected to rise or fall.
+richer explanations of \emph{why} a team is expected to rise or fall.
 Being able to trace a forecast back to specific players, aging curves,
-and usage patterns gives analysts and fans a deeper narrative
+and usage patterns gives analysts and fans a more satisfying narrative
 than team-only regressions can provide.
 
 Third, the choice between these models should be driven by both the
@@ -790,16 +799,1073 @@ need a rough directional signal, a simple standings-based approach may
 be sufficient.
 In settings where stakeholders care about transparency, counterfactual
 scenarios (e.g., trades, injuries), or storytelling around players, a
-player-centric model brings meaningful benefits even with modest accuracy
-improvement.
+player-centric design offers clear added value even if raw accuracy
+improves only modestly.
 
-More broadly, our project shows how sports analytics tools can balance
-simplicity, interpretability, and responsiveness to real-world change.
+More broadly, our project illustrates how sports analytics tools can be
+designed to balance simplicity, interpretability, and responsiveness to
+change.
 By putting a team-level baseline and a player-level pipeline side by
 side on the same forecasting task, we highlight the trade-offs that
 practitioners face when choosing model complexity, and show how
 user-centered considerations can guide that choice rather than accuracy
 alone.
+
+% %-----------------------------------------------------------------
+% % ABSTRACT
+% %-----------------------------------------------------------------
+% \abstract
+% {In recent years, publicly available NBA box-score and team standings data have made it possible to build increasingly detailed models of team and player performance. Yet many forecasting systems still rely on simple team-level summaries such as past wins or win percentage. In this project, we systematically compare team-centric and player-centric pipelines for predicting regular-season team performance and related player outcomes over roughly two decades of NBA data. First, we build a historical-standings baseline that regresses team win percentage on trend features constructed from past seasons (previous win rate, rolling 3-year and 5-year averages, and short-term trends). Second, we train player-level models using season-long box-score statistics to: (i) predict All-Star selection, (ii) predict whether a player receives All-NBA/MVP–related honors, and (iii) classify players into broad positional groups (Guard / Wing / Big) from their statistical profiles. Third, we aggregate player statistics back to the team level to construct player-informed team features and use these to predict next-season team win percentage. Finally, we implement an automatic model search that randomly explores feature groups, preprocessing schemes, and regression algorithms, and selects configurations that maximize ranking-based metrics (exact rank match and “within one place” accuracy) on the final two seasons. Across held-out seasons, historical win–trend models already achieve high R² and correlation with true win percentage, while player-aggregated models and the auto-optimized pipeline further improve ranking accuracy for recent seasons. Our results suggest that simple team-level trends remain strong baselines, but player-level modeling and automated pipeline search add value for capturing the structure of league-wide standings and connecting roster composition to expected team performance.}
+
+% \keywords{basketball --
+%           sports analytics --
+%           machine learning --
+%           time series forecasting --
+%           player development}
+
+% \maketitle
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Introduction}
+
+% In the modern NBA, decisions about roster construction, trades, and minutes allocation are increasingly driven by data. Teams, media, and fans all care about the same core question: given what we know about past seasons, how well can we forecast future team performance and key player outcomes? With two decades of publicly available box-score and standings data, it is now possible to go beyond simple narratives and rigorously test which modeling choices actually help for this kind of prediction.
+
+% A natural starting point is a team-centric view: treat each franchise as a single unit and summarize its history through wins, losses, and a small set of trend features. This mirrors how many real-world forecasting systems operate, relying on past win percentage and simple trends to project future success. Such models are easy to interpret and compute, but they ignore who is actually on the roster and how individual players evolve over time.
+
+% Complementing this is a player-centric view, where we model players directly and then reason upward to teams. Season-level player box-score statistics capture scoring, playmaking, defense, and usage patterns that drive both individual recognition and team success. In this project, we use player data to tackle three related prediction problems: (1) identifying All-Star–caliber seasons, (2) predicting whether a player will receive All-NBA or MVP–related honors, and (3) classifying players into broad positional groups (Guard / Wing / Big) from their statistical profiles. These tasks test whether basic box-score data is sufficient to recover meaningful structure in how the league evaluates and uses players.
+
+% We then link the player and team perspectives by aggregating player statistics back to the team level and combining them with historical win–trend features. On top of this team-level table, we build and evaluate a variety of regression pipelines to predict team win percentage and resulting standings. Rather than handpicking a single model, we run an automatic search over feature groups, preprocessing schemes, and algorithms (tree-based methods, linear models, neural networks, kernels, and simple ensembles) and select configurations that perform best on ranking-based metrics for the final two seasons.
+
+% Together, these components allow us to ask a concrete question: when is a simple team-level win–trend baseline “good enough,” and when do richer player-level features and automated model selection provide real gains in predicting how the NBA standings will shake out? This project aims to quantify that trade-off and to clarify how much value is added by moving from coarse team summaries to more detailed, player-informed representations.
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Prior Literature}
+
+% \subsection{Team-level rating and expectation models}
+
+% A large body of work in sports analytics has focused on predicting team performance using aggregate team-level statistics. One influential family of models is the \emph{Pythagorean expectation}, which estimates a team's theoretical winning percentage from points scored and points allowed via a power-law relationship. Originally proposed for baseball and later adapted to basketball, this idea underlies many simple baselines that relate scoring margins to wins and losses \citep[see, e.g.,][]{oliver2004basketball,sarlis2020sports}. These models provide strong, easy-to-interpret benchmarks but depend solely on aggregate scoring margins and do not incorporate information about individual players.
+
+% Another common approach is to model team strength with rating systems inspired by Elo. In basketball applications, Elo-style ratings are updated after each game based on the result, home-court advantage, and the margin of victory, and then used to forecast future game and series outcomes. Public-facing systems such as FiveThirtyEight's NBA model illustrate how dynamic ratings can track changes in team strength over a season and provide reasonably accurate probabilistic predictions for both games and playoff series \citep{silver2015elo}. Together, Pythagorean and Elo-style systems represent static or quasi-static team-level baselines that are closely related to our first family of models, which relies on historical team wins and win-percentage trends. However, because these methods operate on aggregate team outcomes, they are inherently limited in their ability to anticipate abrupt changes in performance driven by roster turnover or shifts in player roles, and they rarely make explicit use of the rich player-level data that are now widely available.
+
+% \subsection{Machine learning for NBA game and season prediction}
+
+% Beyond analytic formulas and rating systems, many studies have applied machine learning to predict basketball results using team-level features. Early work by \citet{loeffelholz2009nba} used neural networks to predict single-game NBA outcomes from box-score statistics and contextual variables, demonstrating that nonlinear models can capture interactions between basic team statistics. More recent surveys review a wide range of approaches, including logistic regression, support vector machines, tree-based ensembles, and deep neural networks, and typically find that machine-learning models outperform simpler statistical baselines when sufficient historical data are available \citep{sarlis2020sports}.
+
+% Researchers have also moved from game-level prediction to season-level tasks, such as forecasting a team's final win total or playoff qualification. For example, \citet{yang2015nba} regress regular-season wins on team-level and aggregated player statistics to study which factors are most predictive of team success. These season-level models again treat each team as the unit of analysis and usually rely on summary statistics from the current or previous season, with a small number of hand-chosen algorithms and loss functions.
+
+% In contrast, our project situates season-level win-percentage prediction in a broader model-selection and evaluation framework. We combine simple historical win-percentage trends with richer team- and player-derived features, and systematically compare a large family of models (linear methods, tree ensembles, neural networks, kernel methods, $k$-NN, and simple ensembles) under a common ranking-based evaluation (exact standings rank, within-one, and within-two accuracy on held-out seasons). This allows us to assess not only whether machine learning improves over simple standings-based baselines, but also which combinations of features, preprocessing, and algorithms are most effective for predicting the structure of the final league table.
+
+% \subsection{Player-level prediction and its link to team performance}
+
+% Complementary to team-level approaches, a growing literature studies player evaluation and performance prediction using detailed box-score and tracking data. \citet{sarlis2020sports} review many of these methods, including regression-based models for player efficiency metrics, clustering techniques for grouping players with similar playing styles, and rating systems that quantify individual contribution to team success. In practice, coaches and analysts often combine such player-level models with domain knowledge to support decisions about rotations, matchups, and roster construction.
+
+% Some work, including \citet{yang2015nba}, aggregates player statistics into team-level features to predict season outcomes, effectively creating a simple player-to-team pipeline. However, existing player-focused models typically concentrate on a single type of outcome (e.g., efficiency ratings or win shares), and most studies treat player-level prediction and team-level season forecasting as separate problems. There is comparatively little work that simultaneously (i) uses player box-score statistics to predict league recognition and role (e.g., awards or coarse positional groups), (ii) aggregates those same player-level statistics into team-level profiles, and (iii) compares these player-informed team models against strong, standings-based baselines under a unified evaluation protocol.
+
+% Our project is designed to fill this gap in three ways. First, we train player-level classifiers on season-long box-score features to predict All-Star selection, All-NBA/MVP–related honors, and coarse positional categories (Guard / Wing / Big), testing how much structure about league perception and on-court role can be recovered from standard statistics alone. Second, we aggregate player statistics back to the team level to construct player-informed team features and combine them with simple win-percentage trend features derived from historical standings. Third, we place these models alongside a purely standings-based baseline and an automatically tuned family of regression pipelines, and evaluate all of them on the same task: predicting team win percentage and resulting standings over held-out seasons. This setup allows us to quantify when player-informed models meaningfully improve upon historical win–trend baselines, and to more clearly connect individual player profiles to expected team performance at the season level.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Tasks and evaluation}
+% \label{sec:notation}
+
+% We organize our project around four related prediction tasks:
+
+% \begin{enumerate}
+%   \item a \emph{standings-only} baseline that forecasts team win percentage from historical wins and losses;
+%   \item three \emph{player-level} classification tasks (All-Star selection, major awards, and coarse position);
+%   \item a \emph{team-level} regression model that predicts team win percentage from richer team box-score and trend features; and
+%   \item an \emph{auto-tuned ranking model} that searches over feature groups, preprocessing strategies, and model families to maximize team-ranking accuracy.
+% \end{enumerate}
+
+% The team-level tasks (1, 3, and 4) all operate at the season-by-team level but differ in how much information beyond past wins they use. The player-level tasks (2) operate on individual season-by-player rows and are evaluated independently. Below we describe the targets, data splits, and evaluation metrics used for each group of tasks.
+
+% \subsection{Team-level win-percentage prediction from standings only}
+
+% For the standings-only baseline, we work directly with season-level win–loss records. For each team $t$ and season $s$, we define the realized winning percentage
+% \[
+% \text{WIN\_PCT}_{t,s}
+% =
+% \frac{\text{WINS}_{t,s}}
+%      {\text{WINS}_{t,s} + \text{LOSSES}_{t,s}},
+% \]
+% and construct a small feature vector $\mathbf{x}^{\text{stand}}_{t,s}$ from team-specific historical trends:
+% previous-season win percentage, three- and five-year rolling averages, and a short-term trend in the rolling average. A linear regression model $f_\theta$ is trained to predict
+% \[
+% \hat{y}_{t,s} = f_\theta(\mathbf{x}^{\text{stand}}_{t,s}),
+% \]
+% which we interpret as a forecast of $\text{WIN\_PCT}_{t,s}$.
+
+% \paragraph{Data split.}
+% We use team–season summaries from the 2004--2005 through 2024--2025 seasons (630 team–season observations). Following a realistic forecasting setting, the two most recent seasons (2023--2024 and 2024--2025) are held out for evaluation, and all earlier seasons are used for training. Trend features are computed on the full panel, but model fitting uses only the training seasons.
+
+% \paragraph{Evaluation metrics.}
+% Because this baseline is framed as a regression task, we evaluate it using standard regression and correlation metrics computed separately for each held-out season:
+% mean absolute error (MAE) and root mean squared error (RMSE) for calibration,
+% coefficient of determination ($R^2$) for overall fit, and both Pearson and Spearman correlation between predicted and realized win percentage to capture linear and rank-order agreement.
+
+% \subsection{Player-level prediction tasks}
+
+% We then consider three player-centric classification tasks, each defined on season-by-player rows with box-score features.
+
+% \paragraph{All-Star selection.}
+% For each player $p$ and season $s$, we build a feature vector $\mathbf{x}^{\text{AS}}_{p,s}$ from counting and rate statistics (minutes, shooting volume and efficiency, rebounding, playmaking, and defensive stats), together with one-hot encoded position and team indicators. The target label $y^{\text{AS}}_{p,s} \in \{0,1\}$ indicates whether the player received an All-Star designation that season, obtained by parsing the awards string. We split seasons temporally, training on earlier years and evaluating on the last three seasons.
+
+% \paragraph{All-NBA / MVP awards.}
+% The second player-level task predicts whether a player appears in major end-of-season awards. The feature vector $\mathbf{x}^{\text{MVP}}_{p,s}$ uses all available numeric box-score features, and the binary label $y^{\text{MVP}}_{p,s}$ is set to 1 if the awards string contains any All-NBA or MVP-related marker and 0 otherwise. To handle extreme class imbalance, we learn an XGBoost classifier with a class-weighting term derived from the positive-to-negative ratio in the training data. As before, we use a temporal split, training on older seasons and testing on the three most recent seasons.
+
+% \paragraph{Coarse position classification.}
+% The third player-level task maps each player-season to one of three coarse position groups:
+% Guard (PG/SG), Wing (SF), or Big (PF/C). We derive a label $y^{\text{pos}}_{p,s} \in \{\text{Guard}, \text{Wing}, \text{Big}\}$ by collapsing raw position strings and discarding ambiguous entries. The feature vector $\mathbf{x}^{\text{pos}}_{p,s}$ includes both raw box-score quantities and engineered features such as per-36-minute statistics, three-point and free-throw rates, assist-to-turnover ratio, and a usage proxy. We again use a temporal split with earlier seasons for training and the most recent seasons (starting in 2023) for testing.
+
+% \paragraph{Evaluation metrics.}
+% For all three player-level tasks, we evaluate classifiers primarily using overall accuracy on the held-out seasons, supplemented by per-class precision, recall, and F1-score. For the multi-class position task, we also report the full confusion matrix and compare against a simple majority-class baseline (always predicting the most frequent position) to quantify the gain over trivial guessing.
+
+% \subsection{Team-level ranking prediction with rich features}
+
+% Beyond the standings-only baseline, we train models that use richer season-level team statistics to predict team strength. For each team $t$ and season $s$, we assemble a feature vector $\mathbf{x}^{\text{team}}_{t,s}$ from box-score totals, efficiency metrics, and trend features (described below) and train a regression model $g_\phi$ to output a scalar score
+% \[
+% \hat{z}_{t,s} = g_\phi(\mathbf{x}^{\text{team}}_{t,s}),
+% \]
+% which we use as a proxy for team quality. Within each season, teams are ranked by sorting $\hat{z}_{t,s}$ in descending order.
+
+% \paragraph{Data split.}
+% We reuse the same temporal split as in the standings-only baseline: the 2023--2024 and 2024--2025 seasons serve as held-out test seasons, while all prior seasons are used for training. Feature engineering (rolling box-score averages and win-percentage trends) is performed on the full panel, but model fitting and hyperparameter search never access the held-out seasons.
+
+% \paragraph{Ranking-based evaluation metrics.}
+% Since the main objective here is to recover the correct \emph{ordering} of teams within a season, we evaluate team-level predictions using rank-based metrics. Let $\mathrm{RANK}^{\mathrm{true}}_{t,s}$ denote the rank of team $t$ in season $s$ when teams are sorted by realized winning percentage $\text{WIN\_PCT}_{t,s}$ (1 = best), and let $\mathrm{RANK}^{\mathrm{pred}}_{t,s}$ be the corresponding rank when teams are sorted by the model score $\hat{z}_{t,s}$. For each season $s$ with $N_s$ teams, we compute
+% \[
+% \mathrm{ExactAcc}_s =
+% \frac{1}{N_s}\sum_t
+% \mathbb{1}[\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+% =
+% \mathrm{RANK}^{\mathrm{true}}_{t,s}],
+% \]
+% \[
+% \mathrm{Within1}_s =
+% \frac{1}{N_s}\sum_t
+% \mathbb{1}[|\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+% -
+% \mathrm{RANK}^{\mathrm{true}}_{t,s}|\le 1],
+% \]
+% \[
+% \mathrm{Within2}_s =
+% \frac{1}{N_s}\sum_t
+% \mathbb{1}[|\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+% -
+% \mathrm{RANK}^{\mathrm{true}}_{t,s}|\le 2].
+% \]
+% We report each metric for the two held-out seasons separately and also average them across seasons when comparing models. Figure~\ref{fig:rank-scatter} visualizes predicted versus actual rankings for the held-out seasons under the best-performing configuration.
+
+% % ===================== 两个赛季的排名散点图 =====================
+% \begin{figure*}
+% \centering
+% \begin{subfigure}{0.48\textwidth}
+%     \centering
+%     % 保存的文件名示例：figs/season_2023_2024_rank_scatter.png
+%     \includegraphics[width=\textwidth]{season_2023_2024_rank_scatter}
+%     \caption{2023--2024 season.}
+%     \label{fig:rank-2324}
+% \end{subfigure}
+% \hfill
+% \begin{subfigure}{0.48\textwidth}
+%     \centering
+%     % 保存的文件名示例：figs/season_2024_2025_rank_scatter.png
+%     \includegraphics[width=\textwidth]{season_2024_2025_rank_scatter}
+%     \caption{2024--2025 season.}
+%     \label{fig:rank-2425}
+% \end{subfigure}
+% \caption{
+% Predicted versus actual team rankings for the two held-out seasons.
+% Each point corresponds to a single team; the dashed diagonal indicates
+% perfect agreement between predicted and true rankings.
+% }
+% \label{fig:rank-scatter}
+% \end{figure*}
+% % ==========================================================
+
+% \subsubsection{Feature groups}
+
+% To structure the model search space, we organize candidate
+% team-level predictors into six feature groups and randomly sample combinations of these groups during model search:
+% \begin{itemize}
+%   \item \textbf{basic\_box}: core box-score totals (PTS, FGA, FTA, TRB, AST, STL, BLK, TOV, PF),
+%   \item \textbf{basic\_eff}: efficiency ratios (TS\_PCT, EFG\_PCT, AST\_TO\_RATIO) and previous-season win percentage (PREV\_WIN\_PCT),
+%   \item \textbf{four\_factors}: the “Four Factors” metrics (effective field-goal percentage, turnover factor, offensive rebounding factor, and free-throw rate),
+%   \item \textbf{rolling\_box}: 3-year rolling averages of key box-score totals (e.g., PTS, AST, TRB, STL, BLK),
+%   \item \textbf{full\_box}: the full traditional box-score set (field goals, three-pointers, free throws, rebounds, assists, steals, blocks, turnovers, fouls, and points),
+%   \item \textbf{trend}: win-percentage trend features (three- and five-year rolling averages and a short-term trend in the rolling average).
+% \end{itemize}
+% Each sampled configuration selects a subset of these groups, and the corresponding union of columns is used as the feature vector $\mathbf{x}^{\text{team}}_{t,s}$.
+
+% \subsubsection{Models, preprocessing, and hyperparameter search}
+
+% We perform a random search over model families, feature-group combinations, and preprocessing strategies. The model families include gradient boosting, random forests, LightGBM, XGBoost, ridge and lasso regression, support vector regression, $k$-nearest neighbors, and small feed-forward multilayer perceptrons. For each model, we sample hyperparameters from predefined ranges (e.g., number of trees and depth for tree-based models, regularization strength for linear models, and hidden-layer sizes for neural networks).
+
+% Before model fitting, we also sample a preprocessing strategy from a small set of options: standardization, robust scaling, min–max scaling, or no scaling. For a given configuration, we:
+
+% \begin{enumerate}
+%   \item build the selected feature matrix on all training seasons,
+%   \item fit the chosen preprocessing transform (if any) and model on the training data, and
+%   \item evaluate the resulting model on the held-out seasons using the rank-based metrics above.
+% \end{enumerate}
+
+% We record all configurations and retain those that achieve strong ranking performance (e.g., high exact and within--1 accuracy) on the two held-out seasons for further analysis. Further diagnostic summaries of the search space are provided in Appendix~\ref{app:model-search}.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Project description and design process}
+% \label{sec:project}
+
+% This section describes the concrete data we use, the models we implement
+% for each task, and the iterative design choices that led to the final
+% pipeline.
+
+% \subsection{Data sources and preprocessing}
+
+% We work with season-level NBA team and player statistics spanning roughly
+% the 2004--2005 through 2024--2025 regular seasons. All data come from
+% publicly available box-score and standings tables and are stored in
+% CSV files that we process with Python.
+
+% \paragraph{Team-level data.}
+% At the team level we use two types of tables:
+% \begin{itemize}
+%     \item \textbf{Win--loss summaries} (\texttt{Team\_stats/WL}): for each team and season,
+%     we have wins, losses, and a team abbreviation. From these we compute
+%     the realized winning percentage $\text{WIN\_PCT}$ and several
+%     simple trend features: previous-season win percentage, three- and
+%     five-year rolling averages, and a short-term trend in the rolling
+%     average for each franchise.
+%     \item \textbf{Expanded team summaries}
+%     (\texttt{Team\_stats/all\_seasons\_team\_summary.csv}): these tables
+%     contain traditional box-score totals (field goals, three-pointers,
+%     free throws, rebounds, assists, steals, blocks, turnovers, fouls,
+%     and points), shooting percentages, and win--loss records for every
+%     team-season. We use these to derive efficiency metrics (true
+%     shooting percentage, effective field-goal percentage, assist-to-turnover
+%     ratio) and the so-called ``Four Factors'' (effective shooting,
+%     turnover factor, offensive rebounding factor, and free-throw rate),
+%     as well as three-year rolling averages of key stats.
+% \end{itemize}
+
+% All team-level numeric columns are cleaned by replacing infinite values
+% with \texttt{NaN} and dropping rows with missing wins or losses. Seasons
+% are indexed by both their string form (e.g., 2023--2024) and an integer
+% end year (e.g., 2024) to support temporal splitting and rolling-window
+% computations.
+
+% \paragraph{Player-level data.}
+% At the player level we use a single long panel
+% (\texttt{all\_stats/player\_20years.csv}) containing one row per
+% player-season with the following fields:
+% per-game box-score stats (points, rebounds, assists, steals, blocks,
+% turnovers, personal fouls, field goals and attempts, three-pointers and
+% attempts, free throws and attempts), minutes played, age, team, raw
+% position string, an awards string, and a season identifier.
+
+% For preprocessing we:
+% \begin{itemize}
+%   \item filter out rows with zero games played to remove inactive players;
+%   \item drop the aggregated ``TOT'' rows for players who were traded mid-season and instead rely on their team-specific rows;
+%   \item derive season start and end years from the season string to enable temporal train--test splits; and
+%   \item apply a minimum minutes-played threshold (e.g., 500 minutes) when learning player positions, so that labels are based on stable playing roles rather than very small samples.
+% \end{itemize}
+
+% We also engineer additional player-level features for the position
+% classification task. These include per-36-minute versions of core stats
+% (points, assists, rebounds, steals, blocks, turnovers), per-36 shooting
+% volume (field-goal, three-point, and free-throw attempts), and
+% ratio-based descriptors such as three-point rate, free-throw rate,
+% assist-to-turnover ratio, and a usage proxy based on scoring attempts.
+
+% \paragraph{Label construction.}
+% The three player-level tasks require different labels:
+% \begin{itemize}
+%   \item \textbf{All-Star label}:
+%   we parse the awards string for the substring \texttt{"AS"} and set a binary label
+%   \texttt{is\_all\_star} to 1 if present and 0 otherwise.
+%   \item \textbf{All-NBA / MVP label}:
+%   we define \texttt{LABEL\_ALLNBA\_MVP} by checking whether an awards
+%   string contains markers related to All-NBA teams or MVP voting, and
+%   set a binary label accordingly. This produces a highly imbalanced
+%   classification problem with a small positive class.
+%   \item \textbf{Coarse position label}:
+%   we map raw position strings (e.g., \texttt{"PG"}, \texttt{"PG-SG"},
+%   \texttt{"PF"}) into three broad groups:
+%   Guard (PG/SG), Wing (SF), and Big (PF/C). Ambiguous or unmappable
+%   positions are dropped.
+% \end{itemize}
+
+% All temporal splits are based on season start or end year: earlier
+% seasons are used for training, and the most recent seasons form
+% held-out test sets for each task.
+
+% \subsection{Model variants by task}
+
+% We implement different model families tailored to each of the four main
+% tasks introduced in Section~\ref{sec:notation}.
+
+% \paragraph{Task 1: Standings-only team baseline.}
+% For the standings-only baseline, we use a linear regression model
+% trained on team-level trend features derived from historical
+% win--loss records (previous-season win percentage, three- and five-year
+% rolling averages, and a short-term trend). Features are standardized
+% with a \texttt{StandardScaler} before training. The model is trained on
+% all but the last two seasons, and its performance is reported on the
+% 2023--2024 and 2024--2025 seasons.
+
+% \paragraph{Task 2: Player-level classification.}
+% We train three separate classifiers on the long player panel.
+
+% \begin{itemize}
+%   \item \textbf{All-Star prediction}:
+%   we use a \texttt{GradientBoostingClassifier} with 400 trees and depth 3.
+%   The input feature set combines numeric box-score statistics with
+%   one-hot encoded team and raw position indicators. A column-wise
+%   preprocessing pipeline standardizes numeric features and one-hot
+%   encodes categorical features. Training and evaluation are done using a
+%   temporal split, with the last three seasons held out.
+
+%   \item \textbf{All-NBA / MVP prediction}:
+%   we use an \texttt{XGBClassifier} that ingests all numeric features except
+%   identifiers (player name, team, position, awards, season). To address
+%   extreme class imbalance, we compute a \texttt{scale\_pos\_weight} based
+%   on the positive rate in the training set and pass it to XGBoost to
+%   up-weight errors on the rare positive class. Features are standardized
+%   before training.
+
+%   \item \textbf{Coarse position classification}:
+%   we train an XGBoost multi-class classifier on the enriched feature set
+%   that includes base box-score stats and engineered per-36 and ratio
+%   features. Labels are the three coarse position groups
+%   (Guard, Wing, Big). We filter out low-minute seasons, fit a
+%   \texttt{StandardScaler} on the training set, and train the model with
+%   pre-selected hyperparameters (e.g., 600 trees, depth 4, learning rate
+%   0.1) obtained from prior tuning.
+% \end{itemize}
+
+% Each classifier is evaluated on a temporally separated test set, and we
+% compare performance to simple baselines such as always predicting the
+% majority class (for positions).
+
+% \paragraph{Task 3: Player-to-team aggregation model.}
+% To connect player performance back to team outcomes, we build a
+% team-level panel by aggregating player statistics up to the team-season
+% level and merging them with official team summaries.
+
+% We first group player rows by season and team, summing counting stats
+% (games, minutes, field-goal attempts, rebounds, assists, steals,
+% blocks, turnovers, fouls, and points) and averaging age. From these
+% aggregated stats we recompute team-level shooting percentages, true
+% shooting percentage, effective field-goal percentage, and assist-to-turnover
+% ratio using standard formulas. We then merge this player-derived
+% table with the official team summary table on season and team.
+
+% On this merged panel we compute win-percentage trend features as
+% before (previous-season win percentage and multi-year rolling averages)
+% and train a \texttt{RandomForestRegressor} on all seasons except the last
+% two. The target is team win percentage, and we again hold out the
+% 2023--2024 and 2024--2025 seasons for evaluation. This model allows us
+% to ask whether combining player-derived and official team features can
+% match or improve upon a standings-only baseline when predicting team
+% performance.
+
+% \paragraph{Task 4: Auto-tuned team ranking model.}
+% Finally, we construct an automatic model-search pipeline on the expanded
+% team summary table. The goal is to find combinations of feature groups,
+% preprocessing strategies, and model families that maximize ranking
+% metrics on the held-out seasons.
+
+% For each random configuration, we:
+% \begin{enumerate}
+%   \item randomly sample one or more feature groups from the six groups
+%   defined in Section~\ref{sec:notation} (with a constraint that we do not
+%   use trend features alone);
+%   \item build the corresponding feature matrix on all training seasons;
+%   \item sample a preprocessing strategy from
+%   \{\texttt{StandardScaler}, \texttt{RobustScaler}, \texttt{MinMaxScaler}, none\};
+%   \item sample a model family and its hyperparameters from a large model
+%   pool that includes LightGBM, XGBoost, random forests, gradient boosting,
+%   ridge and lasso regression, support vector regression, $k$-nearest
+%   neighbors, simple multilayer perceptrons, and a few voting ensembles; and
+%   \item fit the model on all non-held-out seasons and evaluate its ranking
+%   accuracy on the two held-out seasons using exact-rank and within--1/2
+%   metrics.
+% \end{enumerate}
+
+% We record the performance and configuration of each run, track the
+% best-performing combination, and export the detailed predictions of the
+% global best model for qualitative inspection.
+
+% \subsection{Design process}
+
+% We approached the project as an iterative design process that gradually
+% increased model complexity and realism while staying grounded in
+% temporally realistic evaluation.
+
+% \paragraph{Phase 1: Simple team baselines.}
+% We started with the most transparent team-level baselines: predicting
+% future team win percentage from only past win--loss records. Early
+% experiments with single-season and multi-season trend features showed
+% that a linear model on a small set of historical win-percentage
+% statistics already explains a large fraction of variance in future
+% win percentage. This observation motivated two decisions:
+% (1) treat a standings-only trend model as a central baseline for all
+% subsequent comparisons, and (2) keep evaluation strictly temporal
+% (last two seasons as holdout) to mimic real forecasting.
+
+% \paragraph{Phase 2: Player-level modeling.}
+% Next, we shifted to player-level tasks to better understand how much
+% signal is available in individual statistics. We chose three concrete
+% classification problems---All-Star, major awards, and coarse position---
+% because they are directly tied to real basketball concepts and allow us
+% to quantify how well simple gradient boosting and XGBoost models can
+% recover expert decisions and positional roles from box-score data alone.
+% During this phase we discovered strong class imbalance for awards and
+% found that naive models tended to ignore the rare positive class,
+% which led us to add explicit class weighting in the MVP/All-NBA model
+% and to report per-class metrics rather than only overall accuracy.
+
+% \paragraph{Phase 3: From players back to teams.}
+% Having seen that player-level models can capture meaningful structure,
+% we asked whether aggregating player stats back to teams would help
+% predict future team performance. Our initial idea was to build very
+% high-dimensional models that directly concatenated player vectors, but
+% these proved fragile and hard to interpret. We therefore settled on a
+% simpler and more stable design that aggregates player stats to the
+% team-season level, recomputes familiar team-level metrics (e.g., true
+% shooting and assist-to-turnover ratio), and feeds these into a
+% tree-based regressor. This stage clarified how much of team success can
+% be recovered from player-level contributions alone and provided a
+% natural bridge between the player and team tasks.
+
+% \paragraph{Phase 4: Automated model and feature search.}
+% Finally, we observed that manually choosing feature sets and models at
+% the team level can be ad hoc and sensitive to researcher choices.
+% To make the comparison more systematic, we built an auto-optimizer that
+% randomly samples feature-group combinations, preprocessing methods, and
+% model hyperparameters and evaluates them against the same held-out
+% seasons using rank-based metrics. This framework allowed us to:
+% (1) quantify the variability in performance across reasonable model
+% choices, (2) identify robustly strong configurations (e.g., tree-based
+% ensembles with carefully chosen efficiency and trend features), and
+% (3) position our best model relative to the simpler standings-only
+% baseline.
+
+% Across these phases, we repeatedly used the same temporal split
+% strategy, avoided leaking test-season information into feature
+% engineering, and relied on held-out seasons to decide which modeling
+% choices to keep. This design process ensures that the final reported
+% results reflect genuine out-of-sample performance rather than overfitting
+% to a particular season.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Evaluation, user testing, and iteration}
+% \label{sec:testing}
+
+% Although our project does not have ``end users'' in the sense of a
+% deployed product, we still treat evaluation as a form of
+% user-centered testing. The intended users are basketball fans and
+% analysts who care about two things: (i) whether the forecasts are
+% accurate, and (ii) whether the outputs and metrics are interpretable in
+% basketball terms (wins, rankings, awards, and positions).
+
+% \subsection{Temporal train--test protocol}
+
+% Across all four tasks we use temporally separated train and test sets to
+% approximate a realistic forecasting setting. Rather than randomly
+% splitting within a season, we train on earlier seasons and evaluate on
+% the most recent seasons:
+
+% \begin{itemize}
+%   \item \textbf{Team-level baselines (Tasks 1, 3, 4):}
+%   for the standings-only baseline, the player-to-team aggregation model,
+%   and the auto-tuned ranking model, we train on all seasons up to
+%   2022--2023 and treat the 2023--2024 and 2024--2025 seasons as a
+%   held-out test set. All feature engineering (e.g., rolling averages)
+%   uses only past seasons for each team.
+%   \item \textbf{Player-level classification (Task 2):}
+%   for All-Star and MVP/All-NBA prediction we train on earlier seasons
+%   and hold out the last three seasons for evaluation. For position
+%   prediction we train on seasons up to 2022--2023 and test on seasons
+%   from 2023--2024 onward. In all cases, season identifiers are used to
+%   enforce a strict train--test separation in time.
+% \end{itemize}
+
+% This protocol ensures that reported performance reflects genuine
+% out-of-sample accuracy on future seasons, matching the intended usage
+% scenario of forecasting upcoming NBA seasons.
+
+% \subsection{Metrics by task}
+
+% We use different metrics for the team-level and player-level tasks, and
+% we explicitly track how these metrics change as we iterate on features
+% and models.
+
+% \paragraph{Team-level win-percentage prediction (Tasks 1 and 3).}
+% For the standings-only baseline and the player-to-team aggregation
+% model, the target is team win percentage in a given season. On each
+% held-out season we compute:
+
+% \begin{itemize}
+%   \item \textbf{Mean absolute error (MAE)} between predicted and actual
+%         win percentage:
+%         \[
+%           \text{MAE}
+%           = \frac{1}{N_s}
+%             \sum_{t}
+%             \left|
+%               \widehat{\text{WIN\_PCT}}_{t,s}
+%               -
+%               \text{WIN\_PCT}_{t,s}
+%             \right|,
+%         \]
+%   \item \textbf{Root mean squared error (RMSE)}, which penalizes large
+%         mistakes more heavily,
+%   \item \textbf{$R^2$}, as a measure of variance explained, and
+%   \item \textbf{Correlation metrics} (Pearson $r$ and Spearman's $\rho$)
+%         between predicted and actual win percentage across teams in
+%         each season.
+% \end{itemize}
+
+% These metrics provide both a scale-based view (MAE/RMSE in win
+% percentage) and an ordering-based view (Spearman $\rho$) of performance.
+
+% \paragraph{Team-level ranking prediction (Task 4).}
+% For the auto-tuned ranking model, we explicitly score the predicted
+% ordering of teams within each season. Let
+% $\mathrm{RANK}^{\mathrm{true}}_{t,s}$ and
+% $\mathrm{RANK}^{\mathrm{pred}}_{t,s}$ denote the true and predicted rank
+% of team $t$ in season $s$ based on win percentage and model score,
+% respectively. For each test season we compute
+
+% \[
+% \mathrm{ExactAcc}_s =
+% \frac{1}{N_s}\sum_t
+% \mathbb{1}[\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+% =
+% \mathrm{RANK}^{\mathrm{true}}_{t,s}],
+% \]
+% \[
+% \mathrm{Within1}_s =
+% \frac{1}{N_s}\sum_t
+% \mathbb{1}[|\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+% -
+% \mathrm{RANK}^{\mathrm{true}}_{t,s}|\le 1],
+% \]
+% \[
+% \mathrm{Within2}_s =
+% \frac{1}{N_s}\sum_t
+% \mathbb{1}[|\mathrm{RANK}^{\mathrm{pred}}_{t,s}
+% -
+% \mathrm{RANK}^{\mathrm{true}}_{t,s}|\le 2].
+% \]
+
+% Because fans and analysts typically care about whether a model gets the
+% \emph{relative} strength of teams right (e.g., who is top--3 in the
+% league), we also define a combined score that emphasizes the Within--1
+% metric:
+% \[
+% \mathrm{OverallScore}_s
+% =
+% 0.7 \cdot \mathrm{Within1}_s
+% +
+% 0.3 \cdot \mathrm{ExactAcc}_s .
+% \]
+% The auto-optimizer uses the average of these metrics across the two
+% held-out seasons as its objective, and we only retain configurations
+% with at least $40\%$ exact rank accuracy for deeper inspection.
+
+% \paragraph{Player-level All-Star and MVP prediction.}
+% For the All-Star and All-NBA/MVP classification tasks, we evaluate
+% standard classification metrics on the held-out seasons:
+
+% \begin{itemize}
+%   \item \textbf{Overall accuracy}, to give a coarse sense of how often
+%         the model matches historical labels;
+%   \item \textbf{Per-class precision, recall, and F1}, using
+%         \texttt{classification\_report} to explicitly track the rare
+%         positive class (All-Star or All-NBA/MVP);
+%   \item \textbf{Class distribution} in the test set, to quantify
+%         class imbalance; and
+%   \item \textbf{Confusion matrices} for the MVP/All-NBA task, which
+%         make it easy to see whether the model is missing too many true
+%         award winners or hallucinating too many false positives.
+% \end{itemize}
+
+% Because award labels are highly imbalanced, we pay particular attention
+% to recall and F1 for the positive class, not just overall accuracy.
+
+% \paragraph{Player-level position prediction.}
+% For the coarse position classification task (Guard / Wing / Big), we
+% again report:
+
+% \begin{itemize}
+%   \item overall test accuracy,
+%   \item per-class precision, recall, and F1, and
+%   \item the confusion matrix for the three classes.
+% \end{itemize}
+
+% In addition, we compute a simple baseline that always predicts the
+% majority class (Guard) and compare our model's accuracy against this
+% baseline. This makes it clear how much value the model adds beyond a
+% trivial strategy.
+
+% \subsection{Iteration driven by metrics}
+
+% We used these metrics to drive several rounds of iteration at both the
+% feature and model level.
+
+% \paragraph{Iterating on team-level models.}
+% For the standings-only baseline and the player-to-team aggregation
+% model, we initially monitored MAE and RMSE on win percentage, as well as
+% $R^2$ and correlations, on the two most recent seasons. When experiments
+% showed that a very small set of trend features already achieved low MAE
+% and high $R^2$, we decided to treat this trend-based baseline as a
+% strong reference point for all further work.
+
+% In the auto-tuned team model, we shifted the focus from raw errors to
+% ranking metrics (ExactAcc, Within1, Within2), because informal feedback
+% from classmates indicated that getting the ordering of teams correct
+% felt more meaningful than making, say, a 2-win error instead of a
+% 3-win error. We then used the OverallScore objective to automatically
+% search over feature groups, preprocessing strategies, and model
+% families. Only configurations that improved ranking accuracy on the
+% held-out seasons were kept; underperforming combinations were discarded.
+
+% \paragraph{Iterating on player-level models.}
+% For the All-Star and MVP/All-NBA tasks, early prototypes that optimized
+% only accuracy looked superficially strong but performed poorly on the
+% rare positive class. Inspecting the classification reports and confusion
+% matrices revealed that the model was often predicting ``no award'' for
+% almost everyone. In response, we:
+
+% \begin{itemize}
+%   \item introduced explicit class weighting in the XGBoost MVP model
+%         via \texttt{scale\_pos\_weight},
+%   \item monitored positive-class recall and F1 as primary metrics, and
+%   \item tuned the decision threshold (around $0.5$) to balance precision
+%         and recall.
+% \end{itemize}
+
+% For the position classifier, we compared our model against the
+% ``always Guard'' baseline and inspected the confusion matrix. The
+% results showed that Guards and Bigs were learned relatively well, while
+% Wings were harder to distinguish. This guided feature engineering toward
+% adding per-36 rebounding, shooting volume, and usage-related features
+% that better separate wings from both guard-sized and big-sized players.
+
+% \paragraph{Iterating on player-to-team aggregation.}
+% For the aggregation pipeline, we compared MAE, RMSE, and correlations to
+% the standings-only baseline on the same held-out seasons. Early attempts
+% with more complex, high-dimensional designs (e.g., concatenating many
+% player vectors) did not yield clear improvements in these metrics and
+% were difficult to interpret. This led us to simplify the aggregation
+% step to team-season sums and recomputed team-level efficiencies, which
+% produced more stable and interpretable performance. We kept this simpler
+% design because it matched the baseline on key metrics while providing a
+% clear link back to individual player contributions.
+
+% \subsection{Informal user feedback}
+
+% In addition to quantitative metrics, we gathered informal feedback from
+% classmates who follow the NBA. We showed them:
+
+% \begin{itemize}
+%   \item side-by-side tables of predicted vs.\ actual rankings for the
+%         held-out seasons,
+%   \item scatter plots of predicted vs.\ actual rankings, and
+%   \item examples of All-Star and MVP predictions with their underlying
+%         box-score features.
+% \end{itemize}
+
+% Their reactions helped us prioritize certain outputs and metrics. For
+% example, they found the ``within one rank'' metric and ranking scatter
+% plots more intuitive than raw error tables, and they preferred models
+% whose mistakes were small shifts in rank rather than large misorderings.
+% This feedback reinforced our choice to:
+
+% \begin{enumerate}
+%   \item emphasize ranking metrics (ExactAcc, Within1, Within2) in the
+%         auto-tuned team model, and
+%   \item present classification performance with per-class precision and
+%         recall, not just overall accuracy.
+% \end{enumerate}
+
+% Overall, the combination of temporally realistic splits, task-specific
+% metrics, and informal user feedback allowed us to iteratively refine the
+% pipeline toward models that are both quantitatively strong and better
+% aligned with how fans and analysts naturally interpret basketball
+% forecasts.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Findings}
+% \label{sec:findings}
+
+% We summarize the main empirical findings from our four tasks:
+% (i) team-level forecasting from standings history,
+% (ii) team-level forecasting from rich box-score features,
+% (iii) player-level prediction tasks, and
+% (iv) automated model and feature search.
+
+% \subsection{Team-level forecasting from W/L history}
+
+% Using only team wins, losses, and simple trend features
+% (previous-season win percentage and multi-year rolling averages),
+% the baseline linear model already predicts win percentage very well on
+% the two most recent seasons.
+% For the 2023--2024 hold-out season, the model attains
+% $\text{MAE} \approx 0.032$, $\text{RMSE} \approx 0.043$,
+% $R^2 \approx 0.93$, with Pearson and Spearman correlations both above
+% $0.92$.
+% For 2024--2025, performance remains strong
+% ($\text{MAE} \approx 0.040$, $\text{RMSE} \approx 0.044$,
+% $R^2 \approx 0.92$).
+% These results highlight that a ``last-year plus trend'' baseline already
+% captures much of the signal in team outcomes.
+
+% \subsection{Player-level prediction tasks}
+
+% On the player side, we obtain three complementary findings.
+
+% \paragraph{All-Star prediction.}
+% A gradient boosting classifier using per-player box-score features,
+% minutes, age, and one-hot team/position indicators achieves
+% $98.2\%$ accuracy on held-out seasons.
+% Despite strong class imbalance (about $3\%$ of players are All-Stars),
+% the model reaches recall $0.88$ and F1-score $0.75$ for the positive
+% class, recovering most true All-Stars with relatively few false
+% positives.
+
+% \paragraph{All-NBA / MVP prediction.}
+% An XGBoost classifier trained to detect whether a player earns any
+% All-NBA or MVP-related award achieves $99.1\%$ test accuracy.
+% For the small positive class (about $1.5\%$ of players), the model
+% attains recall $0.90$ and F1-score $0.76$, suggesting that simple
+% season-long box-score profiles are highly informative about
+% end-of-season award outcomes.
+
+% \paragraph{Position classification.}
+% For three-way position labels (Guard / Wing / Big), an XGBoost
+% multi-class model with engineered per-36 and rate statistics achieves
+% $76.6\%$ test accuracy, substantially above the majority baseline
+% ($44.4\%$, always predicting ``Guard'').
+% Performance is strongest for Guards and Bigs (F1 $\approx 0.82$--$0.84$),
+% and weakest for Wings (F1 $\approx 0.45$), reflecting that Wings
+% overlap statistically with both backcourt and frontcourt roles.
+
+% \subsection{From players back to teams}
+
+% Aggregating player-level statistics up to team-season level and then
+% predicting team win percentage yields performance comparable to the
+% trend-only baseline, but not strictly better.
+% Using a Random Forest on trend features derived from the
+% player-aggregated data, we obtain, for 2023--2024,
+% $\text{MAE} \approx 0.041$, $\text{RMSE} \approx 0.054$,
+% $R^2 \approx 0.89$, and for 2024--2025,
+% $\text{MAE} \approx 0.046$, $\text{RMSE} \approx 0.056$,
+% $R^2 \approx 0.88$, again with Pearson and Spearman correlations above
+% $0.93$.
+% These results suggest that while aggregating player trajectories back
+% to the team level produces realistic forecasts, it does not easily
+% outperform a carefully tuned standings-based baseline on this dataset.
+
+% \subsection{Best team-level ranking model from automated search}
+
+% The automated search over feature-group combinations, models, and
+% preprocessing strategies identifies a gradient boosting regressor using
+% four feature groups:
+% \texttt{basic\_box}, \texttt{basic\_eff}, \texttt{rolling\_box}, and
+% \texttt{trend}.
+% Evaluated as a ranking model on the two held-out seasons, this
+% configuration achieves:
+% \begin{itemize}
+%     \item 2023--2024: $83.3\%$ exact rank accuracy, $83.3\%$ within~1,
+%           and $96.7\%$ within~2;
+%     \item 2024--2025: $40.0\%$ exact rank accuracy, $76.7\%$ within~1,
+%           and $93.3\%$ within~2.
+% \end{itemize}
+% Averaged across the two seasons, the model reaches $63.3\%$ exact rank
+% accuracy, $78.3\%$ within~1, and $91.7\%$ within~2, substantially
+% improving on naive baselines that rely only on last year's standings.
+
+% \subsection{Interpretability and explanatory power}
+
+% Qualitatively, the different components of the pipeline offer different
+% kinds of explanations for fans and analysts:
+
+% \begin{itemize}
+%     \item The W/L-trend baseline is extremely simple and transparent:
+%           it encodes the belief that teams tend to regress slowly toward
+%           their historical average.
+%     \item The player-level award and position models expose which
+%           statistical profiles are associated with ``star'' seasons and
+%           specific roles, making it easy to reason about why a given
+%           player is flagged as All-Star, All-NBA/MVP, or a particular
+%           position type.
+%     \item The player-to-team aggregation closes the loop by showing how
+%           the collection of individual contributions translates into
+%           expected team success, even if it does not always beat the
+%           standings-only baseline numerically.
+%     \item The final gradient-boosting ranking model balances accuracy
+%           and interpretability at the team level: its feature groups
+%           correspond to familiar concepts (box-score totals, efficiency,
+%           long-term trends), which can be inspected when explaining why
+%           a team is projected higher or lower than its previous record.
+% \end{itemize}
+
+% Taken together, these findings indicate that simple standings-based
+% models are already competitive, but that carefully engineered
+% season-level features and player-centric analyses can both narrow the
+% remaining performance gap and provide richer, more intuitive
+% explanations for forecasted outcomes.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Discussion}
+% \label{sec:discussion}
+
+% Our project set out to build a forecasting pipeline that is both
+% reasonably accurate and understandable for basketball fans and analysts.
+% The findings support three main contributions:
+% (i) quantifying how far simple standings-based models can go,
+% (ii) showing where richer team-level modeling and automated search add
+% value, and
+% (iii) demonstrating how player-level models provide complementary,
+% interpretable views of team strength.
+
+% \subsection{What simple baselines already capture}
+
+% A first takeaway is how strong the historical-standings baseline is.
+% Using only past win percentage and a few trend features, the baseline
+% model achieves $\text{MAE} \approx 0.03$--$0.04$ and
+% $R^2 \approx 0.92$--$0.93$ on the two most recent seasons, with
+% correlations above $0.92$.
+% This confirms that much of next season’s variance can be explained by
+% recent team performance alone: rosters, coaching staffs, and
+% organizational strategies tend to change gradually, so win totals show a
+% high degree of inertia.
+% For users who just want a quick, back-of-the-envelope forecast, this
+% type of model already provides a surprisingly solid answer.
+
+% \subsection{Where richer team modeling helps}
+
+% The automated model and feature search demonstrates that carefully
+% chosen team-level features can further improve ranking quality.
+% The gradient boosting model built on
+% \texttt{basic\_box}, \texttt{basic\_eff}, \texttt{rolling\_box}, and
+% \texttt{trend} features attains
+% $63.3\%$ exact rank accuracy and more than $90\%$ within--2 across the
+% two held-out seasons.
+% This is a clear gain over relying only on last year’s record: the model
+% exploits information about scoring volume, efficiency, rebounding,
+% playmaking, and long-term trends to sort teams more precisely, while
+% still using features that correspond to familiar basketball concepts.
+
+% At the same time, the gains are not unbounded.
+% In some seasons the optimized model substantially improves exact rank
+% accuracy; in others it mainly refines the ordering within tiers.
+% This suggests a design principle for fan-facing tools: adding complexity
+% beyond simple standings is most useful when it is grounded in interpretable
+% basketball quantities (e.g., efficiency metrics and rolling averages),
+% rather than opaque feature engineering.
+
+% \subsection{What player-level models add}
+
+% The player-level tasks highlight a different dimension of the problem.
+% The All-Star and All-NBA/MVP classifiers reach high accuracy and strong
+% recall on heavily imbalanced labels, indicating that basic box-score
+% profiles contain enough information to recover most “star seasons.”
+% The position classifier shows that Guards and Bigs occupy relatively
+% distinct statistical regions, while Wings are more ambiguous, sitting
+% between backcourt and frontcourt profiles.
+% These models do not directly improve team-level $R^2$, but they clarify
+% how the system “thinks” about individual roles and star power.
+
+% When we aggregate player statistics back to the team level and predict
+% win percentage, performance is competitive but does not clearly dominate
+% the standings-based baseline.
+% This underscores a limitation: simply summing player box scores misses
+% factors like lineup fit, coaching schemes, injuries, and schedule
+% context.
+% However, the player-to-team pipeline still adds value in how it explains
+% forecasts.
+% When a team is projected to improve or decline, we can attribute that
+% change to specific players’ expected contributions, aging curves, or the
+% loss/gain of high-usage players, instead of only pointing to last
+% year’s win total.
+
+% \subsection{Implications for fan-facing analytics}
+
+% From a design perspective, the comparison between models illustrates how
+% to balance simplicity, accuracy, and transparency:
+
+% \begin{itemize}
+%     \item The standings baseline is easy to explain and serves as a
+%           robust default.
+%     \item The feature-rich team model offers a measurable boost in
+%           ranking accuracy while still using familiar statistics, making
+%           its behavior explainable in terms fans recognize (shooting
+%           efficiency, rebounding, turnovers, and long-term trends).
+%     \item The player-level models and player-to-team aggregation provide
+%           narratives about \emph{who} is driving a forecast, even when
+%           the overall win prediction is numerically similar to the
+%           baseline.
+% \end{itemize}
+
+% Taken together, these results suggest that for fan- and analyst-facing
+% systems, the most useful designs are not the most complex models, but
+% those that combine:
+% (i) a strong, simple baseline,
+% (ii) modest accuracy gains from richer features, and
+% (iii) player-centric explanations that align with how people already
+% talk about the game.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Limitations and future work}
+% \label{sec:limitations}
+
+% Our study has several limitations that are important to keep in mind
+% when interpreting the results and thinking about generalization beyond
+% our specific setting.
+
+% \subsection{Data and modeling assumptions}
+
+% First, we work entirely within the NBA and rely primarily on
+% traditional box-score data plus simple roster metadata.
+% We do not incorporate richer tracking data, play-by-play information,
+% lineup context, or opponent-adjusted metrics.
+% As a result, both the team-level and player-level models may miss
+% important aspects of defensive impact, spacing, on/off effects, and
+% scheme-specific roles that are not well captured by box-score
+% statistics alone.
+% This makes it unclear how well our approach would transfer to other
+% leagues, lower levels of competition, or contexts where such detailed
+% data are more critical.
+
+% Second, the player evolution components assume relatively smooth aging
+% curves and largely linear dynamics in standard features.
+% In reality, player trajectories can be highly nonlinear and
+% injury-prone, with abrupt jumps due to role changes, coaching shifts,
+% or major trades.
+% Our player-to-team aggregation further assumes that team strength is
+% approximately the sum of individual contributions after basic filtering
+% (e.g., minutes thresholds), and does not explicitly model interaction
+% effects such as lineup fit, staggered rotations, or coaching strategy.
+% These assumptions simplify the modeling pipeline but limit its ability
+% to capture more complex forms of roster change.
+
+% Third, our label choices and thresholds introduce their own biases.
+% For example, All-Star and All-NBA/MVP indicators are treated as ground
+% truth but are influenced by media narratives, fan voting, and award
+% voting rules, and the extreme class imbalance means that small absolute
+% errors can translate into large swings in precision and recall.
+% Similarly, position labels are collapsed into three broad groups, which
+% obscures finer-grained role distinctions that matter in modern
+% positionless basketball.
+
+% \subsection{Evaluation constraints}
+
+% On the evaluation side, we are constrained by the relatively small
+% number of independent seasons.
+% Even with rolling train--test splits, there are only so many
+% non-overlapping temporal splits available.
+% This makes it difficult to obtain very tight confidence intervals on
+% performance differences, and raises the risk that some of our
+% conclusions are specific to the recent era of NBA rules and play style.
+
+% For the team-ranking task in particular, we evaluate on the two most
+% recent seasons, which provides a realistic forecasting scenario but also
+% means that our best-performing configuration is tuned to a small number
+% of out-of-sample years.
+% Likewise, our informal ``user tests'' involve a small, convenience
+% sample of classmates who self-identify as NBA fans.
+% They provide useful qualitative feedback on interpretability but do not
+% constitute a controlled HCI study, and the results may not generalize to
+% professional analysts or more casual fans.
+
+% \subsection{Directions for future work}
+
+% These limitations suggest several directions for improvement:
+
+% \begin{itemize}
+%     \item \textbf{Richer and more granular data.}
+%           Incorporating tracking data, play-by-play event logs,
+%           opponent-adjusted impact metrics, and explicit injury or
+%           availability information could help the models better capture
+%           defense, spacing, and lineup context, especially for the
+%           player-to-team pipeline.
+%     \item \textbf{More flexible but structured models.}
+%           Exploring nonlinear or hierarchical models for player
+%           trajectories (e.g., sequence models or hierarchical
+%           regressions over age and role) and for team strength, while
+%           constraining them with interpretable feature sets, could
+%           relax the smooth-aging and additivity assumptions without
+%           sacrificing transparency.
+%     \item \textbf{Richer evaluation and user studies.}
+%           Extending the evaluation to additional seasons, other
+%           basketball leagues, or other sports would clarify how robust
+%           our design choices are.
+%           A more systematic user study with analysts and different types
+%           of fans could measure how model explanations affect trust,
+%           perceived fairness, and willingness to use forecasts in
+%           decision-making contexts.
+%     \item \textbf{Interactive, user-facing designs.}
+%           Building an interactive interface on top of our models (e.g.,
+%           allowing users to adjust hypothetical trades or injuries and
+%           see updated forecasts) would test how well the pipeline
+%           supports real-world analytical workflows and what additional
+%           explanations are needed in practice.
+% \end{itemize}
+
+% Overall, our work should be viewed as a first step toward combining
+% simple standings-based baselines, richer team-level features, and
+% player-level reasoning in a way that is both quantitatively reasonable
+% and accessible to basketball audiences.
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Conclusions}
+% \label{sec:conclusion}
+
+% We set out to ask a seemingly simple question: when is a very simple
+% team-level model ``good enough'' for predicting NBA performance, and
+% when is it worth investing in a more complex, player-centric pipeline?
+
+% Our results point to three main takeaways.
+
+% First, historical standings by themselves are a remarkably strong
+% baseline.
+% A large share of the variance in future win percentage can be explained
+% by past wins and simple trend features, especially for teams with
+% relatively stable rosters and coaching situations.
+% For many quick-turnaround use cases, this kind of standings-based model
+% offers a lightweight, easy-to-communicate forecast.
+
+% Second, player-based pipelines matter most when teams undergo structural
+% change.
+% When rosters shift substantially, a model that explicitly projects
+% individual player trajectories and aggregates their contributions to the
+% team level can improve ranking accuracy and, just as importantly, offer
+% richer explanations of \emph{why} a team is expected to rise or fall.
+% Being able to trace a forecast back to specific players, aging curves,
+% and usage patterns gives analysts and fans a more satisfying narrative
+% than team-only regressions can provide.
+
+% Third, the choice between these models should be driven by both the
+% structure of the forecasting problem and the needs of the intended
+% users.
+% In settings where data are limited, rosters are stable, or users mainly
+% need a rough directional signal, a simple standings-based approach may
+% be sufficient.
+% In settings where stakeholders care about transparency, counterfactual
+% scenarios (e.g., trades, injuries), or storytelling around players, a
+% player-centric design offers clear added value even if raw accuracy
+% improves only modestly.
+
+% More broadly, our project illustrates how sports analytics tools can be
+% designed to balance simplicity, interpretability, and responsiveness to
+% change.
+% By putting a team-level baseline and a player-level pipeline side by
+% side on the same forecasting task, we highlight the trade-offs that
+% practitioners face when choosing model complexity, and show how
+% user-centered considerations can guide that choice rather than accuracy
+% alone.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{acknowledgements}
@@ -807,7 +1873,7 @@ We thank the open basketball-reference and NBA Stats communities for
 making historical data accessible, and the Northwestern MSCS program
 for general support of this work.
 \end{acknowledgements}
-
+\newpage
 % ==== 参考文献：保持 A&A 的 aa.bst，author–year 风格 ====
 \bibliographystyle{apalike}
 \bibliography{refs}

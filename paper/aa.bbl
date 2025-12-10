@@ -3,7 +3,8 @@
 \bibitem[{FiveThirtyEight}, 2015]{silver2015elo}
 {FiveThirtyEight} (2015).
 \newblock How our {NBA} predictions work.
-\newblock \url{https://fivethirtyeight.com/features/how-our-nba-predictions-work/}.
+\newblock
+  \url{https://fivethirtyeight.com/features/how-our-nba-predictions-work/}.
 \newblock Accessed: 2025-12-07.
 
 \bibitem[Loeffelholz et~al., 2009]{loeffelholz2009nba}
@@ -18,12 +19,14 @@ Oliver, D. (2004).
 
 \bibitem[Sarlis and Tjortjis, 2020]{sarlis2020sports}
 Sarlis, P. and Tjortjis, C. (2020).
-\newblock Sports analytics: A systematic review of basketball player and team evaluation.
+\newblock Sports analytics: A systematic review of basketball player and team
+  evaluation.
 \newblock {\em Information Systems}, 93:101562.
 
 \bibitem[Yang, 2015]{yang2015nba}
 Yang, J. (2015).
-\newblock Predicting regular season results of {NBA} teams based on regression analysis of common basketball statistics.
+\newblock Predicting regular season results of {NBA} teams based on regression
+  analysis of common basketball statistics.
 \newblock UC Berkeley Statistics Project.
 
 \end{thebibliography}

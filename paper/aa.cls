@@ -412,12 +412,7 @@
 \newif\ifaa@firstonline
 \aa@firstonlinetrue
 \newcommand*\journalname[1]{\renewcommand*\aa@journalname{#1}}
-\newcommand*\aa@journalname{Astronomy \& Astrophysics}
-\newcommand*\aa@manuscriptname{%
-  manuscript no. \jobname
-  \hspace{\stretch{1}}%
-  \copyright ESO \the\year
-}
+\newcommand*\aa@journalname{}
 \def\Num{1}
 \def\Vol{1}
 \def\Month{JANUARY~I}
@@ -431,25 +426,6 @@
 }
 \newcommand*\aa@doi{(DOI: will be inserted by hand later)}
 \newcommand*\aa@doifig{(to add)}
-\newcommand*\AALogo{%
-  \settowidth{\aa@dima}{\aa@logo@astrophysicsfont Astrophysics}%
-  \setbox0=\hbox{%
-    \begin{minipage}{\aa@dima}
-      \aa@logo@astronomyfont Astronomy\\
-      \raisebox{\aa@logoraise}{%
-        \parbox[c][0pt]{\z@}{%
-          \rlap{%
-            \hspace*{\aa@logoruleindent}%
-            \aa@logo@andfont \&%
-            \rule[\aa@logoruleraise]{\aa@logorulelength}{\aa@logorulethick}%
-          }%
-        }%
-      }%
-      \raisebox{\aa@logoraiserest}{\aa@logo@astrophysicsfont Astrophysics}
-    \end{minipage}%
-  }%
-  \copy0%
-}
 \newcommand*\aa@pageof{, page \thepage{}}
 \newcommand*{\aa@publishlink}{\hfil%
  Article published by EDP Sciences%
@@ -1018,28 +994,16 @@
     \nointerlineskip
   \ifx\aa@idline\empty
     \noindent
-    \fbox{%
-      \begin{minipage}{\linewidth-2\fboxsep-2\fboxrule}
-        \strut
-        {\aa@journalnamefont \aa@journalname}
-        {\aa@manuscriptnamefont \aa@manuscriptname}\\
-        \ifx\aa@msnr\empty
-          {\strut\aa@todayheadboxfont \today}%
-        \else
-          \makebox[0.75\linewidth][r]{%
-            \strut
-            {\aa@msnrheadboxfont \aa@msnr}%
-          }%
-        \fi
-      \end{minipage}%
-    }%
+    \begin{minipage}{\linewidth}
+      \strut
+      {\aa@journalnamefont \aa@journalname}
+    \end{minipage}%
   \else
     \begin{tabular}[b]{@{}l@{}}
       \aa@idlinefont \aa@idline\\
       \aa@doifont \aa@doi\\
       \aa@copyrightfont \aa@copyrightname~\if!\the\yearCop!\the\year\else\the\yearCop\fi
     \end{tabular}
-    \hfill\AALogo
   \fi\vss}
   \par
   \ifx\aa@topics\empty%
