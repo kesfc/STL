@@ -675,29 +675,26 @@ our specific setting.
 First, we work entirely within the NBA and rely primarily on
 traditional box-score data plus simple roster metadata.
 We do not incorporate richer tracking data, play-by-play information,
-lineup context, or opponent-adjusted metrics.
+lineup context, or opponent metrics.
 As a result, both the team-level and player-level models may miss
-important aspects of defensive impact, spacing, on/off effects, and
-scheme-specific roles that are not well captured by box-score
+important aspects of defensive strategies, spacing and
+schemes that are not well captured by box-score
 statistics alone.
 
 Second, the player evolution components assume relatively smooth aging
 curves and largely linear dynamics in standard features.
-In reality, player trajectories can be highly nonlinear and
-injury-prone, with abrupt jumps due to role changes, coaching shifts,
+In reality, player trajectories can be nonlinear and
+injury-prone and are influenced by role changes, coaching shifts,
 or major trades.
-Our player-to-team aggregation further assumes that team strength is
-approximately the sum of individual contributions after basic filtering
-(e.g., minutes thresholds), and does not explicitly model interaction
+Our player-to-team aggregation method assumes that team strength is
+approximately the sum of individual contributions and does not explicitly model interaction
 effects such as lineup fit or coaching strategy.
 
-Third, our label choices and thresholds introduce their own biases.
+Third, our label choices and thresholds may introduce biases.
 All-Star and All-NBA/MVP indicators are influenced by media narratives,
-fan voting, and award rules, and the extreme class imbalance means that
-small absolute errors can translate into large swings in precision and
-recall.
-Similarly, position labels are collapsed into three broad groups,
-obscuring finer-grained role distinctions that matter in modern
+fan voting, and award rules. The extreme class imbalance means that
+small mistakes can caulead to big changes in precision and recall.
+Similarly, position labels are roughly categoried into three broad groups. This might overlook the finer role divisions that matter in modern
 positionless basketball.
 
 \subsection{Evaluation constraints}
