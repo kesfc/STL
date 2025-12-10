@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex aa"] 1765328627.45872 "aa.aux" "aa.bbl" "aa" 1765328862.62481 0
+["bibtex aa"] 1765328627.45872 "aa.aux" "aa.bbl" "aa" 1765329289.874 0
   "./refs.bib" 1765141257.89985 1342 3a2674a1f3f7204411139deaa0803bb5 ""
   "/usr/local/texlive/2025/texmf-dist/bibtex/bst/base/apalike.bst" 1292289607 24635 604dafcc79f521a11ea73e506e1fbd98 ""
-  "aa.aux" 1765328862.39761 19772 d4d8fb9a63ae804b37dc2fca2bfcf7a4 "pdflatex"
+  "aa.aux" 1765329289.65598 19772 d4d8fb9a63ae804b37dc2fca2bfcf7a4 "pdflatex"
   (generated)
   "aa.bbl"
   "aa.blg"
   (rewritten before read)
-["pdflatex"] 1765328861.41426 "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" "aa.pdf" "aa" 1765328862.62504 0
-  "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" 1765328861.21617 54696 04f051d2eff0460f1f2447cf2431c0eb ""
+["pdflatex"] 1765329288.63244 "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" "aa.pdf" "aa" 1765329289.87415 0
+  "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" 1765329288.40286 54694 b18cfbf81f7bf64722101e18f8001c00 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/jknappen/ec/ecrm1000.tfm" 1136768653 3584 adb004a0c8e7c46ee66cad73671f37b4 ""
@@ -172,11 +172,11 @@
   "/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1765142873 5467155 19efa205003f9ecad95fbbaa6ff24da1 ""
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1741450574 3345740 46b66fdb0378f7bf5921b5eabf1762b8 ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
-  "aa.aux" 1765328862.39761 19772 d4d8fb9a63ae804b37dc2fca2bfcf7a4 "pdflatex"
+  "aa.aux" 1765329289.65598 19772 d4d8fb9a63ae804b37dc2fca2bfcf7a4 "pdflatex"
   "aa.bbl" 1765328627.53601 1141 9b9232b85e3617d572adbb723f86a1ad "bibtex aa"
   "aa.cls" 1765141257.89624 65734 bebbec3a47c040822c12e4cdc434c6c2 ""
-  "aa.out" 1765328862.39867 7682 8a7d0651f9985e545b2bfa5f64d6dfc1 "pdflatex"
-  "aa.tex" 1765328861.21617 54696 04f051d2eff0460f1f2447cf2431c0eb ""
+  "aa.out" 1765329289.65703 7682 8a7d0651f9985e545b2bfa5f64d6dfc1 "pdflatex"
+  "aa.tex" 1765329288.40286 54694 b18cfbf81f7bf64722101e18f8001c00 ""
   "lineno.sty" 1765141257.89917 151723 f406be88dbdad6c97fb774bd975d0393 ""
   "linenoaa.sty" 1765141257.89978 4221 64fc978f7ff26cff65f5a8f1adc2a33b ""
   "season_2023_2024_rank_scatter.png" 1765315732.09358 170075 72abd6430cdaeaea11715674f1fd170e ""
