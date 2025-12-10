@@ -751,7 +751,7 @@ These limitations give several directions for improvement:
           needed in practice.
 \end{itemize}
 
-Overall, our work should be viewed as a first step toward combining
+Overall, this work is a first step toward combining
 simple standings-based baselines, richer team-level features, and
 player-level reasoning in a way that is both quantitatively reasonable
 and accessible to basketball audiences.
@@ -760,18 +760,16 @@ and accessible to basketball audiences.
 \section{Conclusions}
 \label{sec:conclusion}
 
-We set out to ask a seemingly simple question: when is a very simple
+We began with a simple question: when is a very simple
 team-level model “good enough’’ for predicting NBA performance, and
-when is it worth investing in a more complex, player-centric pipeline?
+when is it worth investing in a more complex, player-centric pipeline? Our results point to three main takeaways.
 
-Our results point to three main takeaways.
-
-First, historical standings by themselves are a remarkably strong
+First, historical standings by themselves are a strong
 baseline.
-A large share of the variance in future win percentage can be explained
+A large part of the variance in future win percentage can be explained
 by past wins and simple trend features, especially for teams with
 relatively stable rosters and coaching situations.
-For many quick-turnaround use cases, this kind of standings-based model
+For many use cases, this kind of standings-based model
 offers a lightweight, easy-to-communicate forecast.
 
 Second, player-based pipelines matter most when teams undergo structural
@@ -779,9 +777,9 @@ change.
 When rosters shift substantially, a model that explicitly projects
 individual player trajectories and aggregates their contributions to the
 team level can improve ranking accuracy and, just as importantly, offer
-richer explanations of \emph{why} a team is expected to rise or fall.
+better explanations of \emph{why} a team is expected to rise or fall.
 Being able to trace a forecast back to specific players, aging curves,
-and usage patterns gives analysts and fans a more satisfying narrative
+and usage patterns gives analysts and fans a deeper narrative
 than team-only regressions can provide.
 
 Third, the choice between these models should be driven by both the
@@ -792,12 +790,11 @@ need a rough directional signal, a simple standings-based approach may
 be sufficient.
 In settings where stakeholders care about transparency, counterfactual
 scenarios (e.g., trades, injuries), or storytelling around players, a
-player-centric design offers clear added value even if raw accuracy
-improves only modestly.
+player-centric model brings meaningful benefits even with modest accuracy
+improvement.
 
-More broadly, our project illustrates how sports analytics tools can be
-designed to balance simplicity, interpretability, and responsiveness to
-change.
+More broadly, our project shows how sports analytics tools can balance
+simplicity, interpretability, and responsiveness to real-world change.
 By putting a team-level baseline and a player-level pipeline side by
 side on the same forecasting task, we highlight the trade-offs that
 practitioners face when choosing model complexity, and show how
