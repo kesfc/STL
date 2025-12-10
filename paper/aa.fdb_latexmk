@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex aa"] 1765322174.59925 "aa.aux" "aa.bbl" "aa" 1765322280.41531 0
+["bibtex aa"] 1765325028.77886 "aa.aux" "aa.bbl" "aa" 1765325029.98248 0
   "./refs.bib" 1765141257.89985 1342 3a2674a1f3f7204411139deaa0803bb5 ""
   "/usr/local/texlive/2025/texmf-dist/bibtex/bst/base/apalike.bst" 1292289607 24635 604dafcc79f521a11ea73e506e1fbd98 ""
-  "aa.aux" 1765322280.18189 19863 c57ca226430dd9a84dbd19e04f33c667 "pdflatex"
+  "aa.aux" 1765325029.77606 19915 8c54287f89d9347b6e7c2dead1acc745 "pdflatex"
   (generated)
   "aa.bbl"
   "aa.blg"
   (rewritten before read)
-["pdflatex"] 1765322279.1839 "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" "aa.pdf" "aa" 1765322280.4155 0
-  "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" 1765322278.95338 120070 f00b8d5777b2c4216dbdfe1cb6922e98 ""
+["pdflatex"] 1765325028.86711 "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" "aa.pdf" "aa" 1765325029.98261 0
+  "/Users/jj/Desktop/f25/479/project/STL/paper/aa.tex" 1765325027.25344 120095 ece51d7036202e3efb9014246f2892a8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2025/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2025/texmf-dist/fonts/tfm/jknappen/ec/ecrm1000.tfm" 1136768653 3584 adb004a0c8e7c46ee66cad73671f37b4 ""
@@ -150,6 +150,7 @@
   "/usr/local/texlive/2025/texmf-dist/tex/latex/setspace/setspace.sty" 1670275497 22490 8cac309b79a4c53a4ffce4b1b07aead0 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/tools/calc.sty" 1717359999 10214 61188260d324e94bc2f66825d7d3fdf4 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/tools/enumerate.sty" 1717359999 3468 ad69b54642e68f9fdf39ec1a16dd7341 ""
+  "/usr/local/texlive/2025/texmf-dist/tex/latex/tools/indentfirst.sty" 1717359999 1618 d81d7e8646081fd4049b99a8cd8a91df ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/tools/longtable.sty" 1730496337 15900 3cb191e576c7a313634d2813c55d4bf1 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/tools/xspace.sty" 1717359999 4545 e3f4de576c914e2000f07f69a891c071 ""
   "/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/omltxmi.fd" 1137111002 492 e7f8afe4428797548d4301de03a1b15f ""
@@ -171,11 +172,11 @@
   "/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1765142873 5467155 19efa205003f9ecad95fbbaa6ff24da1 ""
   "/usr/local/texlive/2025/texmf-var/web2c/pdftex/pdflatex.fmt" 1741450574 3345740 46b66fdb0378f7bf5921b5eabf1762b8 ""
   "/usr/local/texlive/2025/texmf.cnf" 1741450484 577 418a7058ec8e006d8704f60ecd22c938 ""
-  "aa.aux" 1765322280.18189 19863 c57ca226430dd9a84dbd19e04f33c667 "pdflatex"
-  "aa.bbl" 1765322174.67583 1141 9b9232b85e3617d572adbb723f86a1ad "bibtex aa"
+  "aa.aux" 1765325029.77606 19915 8c54287f89d9347b6e7c2dead1acc745 "pdflatex"
+  "aa.bbl" 1765325028.86475 1141 9b9232b85e3617d572adbb723f86a1ad "bibtex aa"
   "aa.cls" 1765141257.89624 65734 bebbec3a47c040822c12e4cdc434c6c2 ""
-  "aa.out" 1765322280.18294 7682 8a7d0651f9985e545b2bfa5f64d6dfc1 "pdflatex"
-  "aa.tex" 1765322278.95338 120070 f00b8d5777b2c4216dbdfe1cb6922e98 ""
+  "aa.out" 1765325029.77705 7682 8a7d0651f9985e545b2bfa5f64d6dfc1 "pdflatex"
+  "aa.tex" 1765325027.25344 120095 ece51d7036202e3efb9014246f2892a8 ""
   "lineno.sty" 1765141257.89917 151723 f406be88dbdad6c97fb774bd975d0393 ""
   "linenoaa.sty" 1765141257.89978 4221 64fc978f7ff26cff65f5a8f1adc2a33b ""
   "season_2023_2024_rank_scatter.png" 1765315732.09358 170075 72abd6430cdaeaea11715674f1fd170e ""
