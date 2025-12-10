@@ -703,54 +703,50 @@ On the evaluation side, we are constrained by the relatively small
 number of independent seasons.
 Even with rolling train--test splits, there are only so many
 non-overlapping temporal splits available.
-This makes it difficult to obtain very tight confidence intervals on
-performance differences and raises the risk that some conclusions are
+This makes it difficult to obtain very robust confidence intervals on
+performance differences and leads to the risk that some conclusions are
 specific to the recent era of NBA rules and play style.
 
 For the team-ranking task we evaluate on the two most recent seasons,
 which provides a realistic forecasting scenario but also means that our
 best-performing configuration is tuned to a small number of
 out-of-sample years.
-Likewise, our informal “user tests’’ involve a small, convenience
-sample of classmates; they provide useful qualitative feedback but not a
-controlled HCI study.
 
-Moreover, for the auto-tuned team-ranking model we implicitly use the
+Moreover, for the unsupervised team-ranking model we implicitly use the
 same two held-out seasons both to select the best-performing
 configuration and to report its final performance. Although the test
 seasons are never used for training the underlying models, this reuse
-of the evaluation set as a model-selection objective introduces a mild
-form of leakage: our reported metrics for Task~4 are likely to be
-somewhat optimistic, and a truly unbiased estimate of generalization
+of the evaluation set as a model-selection objective introduces a small amount of leakage. 
+This means our Task 4 results are probably too optimistic, and a truly unbiased estimate of generalization
 would require fixing a configuration first and then evaluating it on
 additional, unseen future seasons.
 
 \subsection{Directions for future work}
 
-These limitations suggest several directions for improvement:
+These limitations give several directions for improvement:
 
 \begin{itemize}
-    \item \textbf{Richer and more granular data.}
-          Incorporating tracking data, play-by-play logs,
+    \item \textbf{More data with details.}
+          Adding tracking data, play-by-play logs,
           opponent-adjusted impact metrics, and explicit injury or
           availability information could help the models better capture
-          defense, spacing, and lineup context.
-    \item \textbf{More flexible but structured models.}
-          Exploring nonlinear or hierarchical models for player
-          trajectories and team strength, while constraining them with
-          interpretable feature sets, could relax smooth-aging and
-          additivity assumptions without sacrificing transparency.
-    \item \textbf{Richer evaluation and user studies.}
+          defense, spacing, and lineup information.
+    \item \textbf{More structured and intepretable models.}
+          Nonlinear or hierarchical methods could model player
+          development and team strength more accurately, while careful
+          feature design would help keep models understandable
+          to analysts and fans.
+    \item \textbf{Better evaluation and user studies.}
           Extending the evaluation to additional seasons, other
           leagues, or other sports would clarify how robust our design
           choices are.
           A more systematic user study with analysts and different types
           of fans could measure how model explanations affect trust and
           perceived usefulness.
-    \item \textbf{Interactive, user-facing designs.}
+    \item \textbf{Interactive, user-facing interface designs.}
           Building an interactive interface (e.g., allowing users to
           adjust hypothetical trades or injuries and see updated
-          forecasts) would test how well the pipeline supports real
+          forecasts) would test how well the models support real
           analytical workflows and what additional explanations are
           needed in practice.
 \end{itemize}
