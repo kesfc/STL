@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  9 DEC 2025 19:03
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  9 DEC 2025 19:40
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -693,69 +693,69 @@ Package hyperref Info: Link coloring ON on input line 17.
 \@outlinefile=\write3
 \openout3 = `aa.out'.
 
-LaTeX Font Info:    Trying to load font information for TS1+txr on input line 51.
+LaTeX Font Info:    Trying to load font information for TS1+txr on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/ts1txr.fd
 File: ts1txr.fd 2000/12/15 v3.1
 )
-LaTeX Font Info:    Trying to load font information for OT1+txr on input line 51.
+LaTeX Font Info:    Trying to load font information for OT1+txr on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/ot1txr.fd
 File: ot1txr.fd 2000/12/15 v3.1
 )
-LaTeX Font Info:    Trying to load font information for U+txsya on input line 51.
+LaTeX Font Info:    Trying to load font information for U+txsya on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/utxsya.fd
 File: utxsya.fd 2000/12/15 v3.1
 )
-LaTeX Font Info:    Trying to load font information for U+txsyb on input line 51.
+LaTeX Font Info:    Trying to load font information for U+txsyb on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/utxsyb.fd
 File: utxsyb.fd 2000/12/15 v3.1
 )
-LaTeX Font Info:    Trying to load font information for U+txmia on input line 51.
+LaTeX Font Info:    Trying to load font information for U+txmia on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/utxmia.fd
 File: utxmia.fd 2000/12/15 v3.1
 )
-LaTeX Font Info:    Trying to load font information for U+txsyc on input line 51.
+LaTeX Font Info:    Trying to load font information for U+txsyc on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/utxsyc.fd
 File: utxsyc.fd 2000/12/15 v3.1
 )
-LaTeX Font Info:    Trying to load font information for T1+txss on input line 51.
+LaTeX Font Info:    Trying to load font information for T1+txss on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/t1txss.fd
 File: t1txss.fd 2000/12/15 v3.1
 )
 LaTeX Font Info:    Font shape `T1/txss/m/n' will be
-(Font)              scaled to size 16.41594pt on input line 51.
+(Font)              scaled to size 16.41594pt on input line 50.
 LaTeX Font Info:    Font shape `T1/txss/b/n' in size <17.28> not available
-(Font)              Font shape `T1/txss/bx/n' tried instead on input line 51.
+(Font)              Font shape `T1/txss/bx/n' tried instead on input line 50.
 LaTeX Font Info:    Font shape `T1/txss/bx/n' will be
-(Font)              scaled to size 16.41594pt on input line 51.
-LaTeX Font Info:    Trying to load font information for T1+txtt on input line 51.
+(Font)              scaled to size 16.41594pt on input line 50.
+LaTeX Font Info:    Trying to load font information for T1+txtt on input line 50.
  (/usr/local/texlive/2025/texmf-dist/tex/latex/txfonts/t1txtt.fd
 File: t1txtt.fd 2000/12/15 v3.1
 )
 LaTeX Font Info:    Font shape `T1/txss/m/n' will be
-(Font)              scaled to size 8.54997pt on input line 51.
+(Font)              scaled to size 8.54997pt on input line 50.
 LaTeX Font Info:    Font shape `T1/txss/b/n' in size <9> not available
-(Font)              Font shape `T1/txss/bx/n' tried instead on input line 51.
+(Font)              Font shape `T1/txss/bx/n' tried instead on input line 50.
 LaTeX Font Info:    Font shape `T1/txss/bx/n' will be
-(Font)              scaled to size 8.54997pt on input line 51.
+(Font)              scaled to size 8.54997pt on input line 50.
 LaTeX Font Info:    Font shape `T1/txss/m/n' will be
-(Font)              scaled to size 10.40245pt on input line 53.
+(Font)              scaled to size 10.40245pt on input line 52.
 LaTeX Font Info:    Font shape `T1/txss/b/n' in size <10.95> not available
-(Font)              Font shape `T1/txss/bx/n' tried instead on input line 53.
+(Font)              Font shape `T1/txss/bx/n' tried instead on input line 52.
 LaTeX Font Info:    Font shape `T1/txss/bx/n' will be
-(Font)              scaled to size 10.40245pt on input line 53.
+(Font)              scaled to size 10.40245pt on input line 52.
 LaTeX Font Info:    Font shape `T1/txss/m/n' will be
-(Font)              scaled to size 6.64998pt on input line 53.
+(Font)              scaled to size 6.64998pt on input line 52.
 
 Underfull \vbox (badness 2376) has occurred while \output is active []
 
 
 
 LaTeX Font Info:    Font shape `T1/txss/m/n' will be
-(Font)              scaled to size 9.49997pt on input line 68.
+(Font)              scaled to size 9.49997pt on input line 67.
 LaTeX Font Info:    Font shape `T1/txss/m/it' in size <10> not available
-(Font)              Font shape `T1/txss/m/sl' tried instead on input line 68.
+(Font)              Font shape `T1/txss/m/sl' tried instead on input line 67.
 LaTeX Font Info:    Font shape `T1/txss/m/sl' will be
-(Font)              scaled to size 9.49997pt on input line 68.
+(Font)              scaled to size 9.49997pt on input line 67.
 
 
 [1{/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/local/texlive/2025/texmf-dist/fonts/enc/dvips/base/8r.enc}
@@ -767,19 +767,19 @@ Underfull \vbox (badness 10000) has occurred while \output is active []
 
 
 
-Underfull \hbox (badness 1048) in paragraph at lines 107--108
+Underfull \hbox (badness 1048) in paragraph at lines 106--107
 []\T1/txr/m/n/10 For the standings-only base-line, we work di-rectly with
  []
 
 
 
 [2]
-Underfull \hbox (badness 3189) in paragraph at lines 120--121
+Underfull \hbox (badness 3189) in paragraph at lines 119--120
 []\T1/txr/m/n/10 We use team^^Useason sum-maries from the 2004--2005
  []
 
 
-Underfull \hbox (badness 1558) in paragraph at lines 136--137
+Underfull \hbox (badness 1558) in paragraph at lines 135--136
 []\T1/txr/m/n/10 For all three player-level tasks, we eval-u-ate clas-si-fiers
  []
 
@@ -788,22 +788,22 @@ Underfull \hbox (badness 1558) in paragraph at lines 136--137
 <season_2023_2024_rank_scatter.png, id=191, 433.62pt x 433.62pt>
 File: season_2023_2024_rank_scatter.png Graphic file (type png)
 <use season_2023_2024_rank_scatter.png>
-Package pdftex.def Info: season_2023_2024_rank_scatter.png  used on input line 181.
+Package pdftex.def Info: season_2023_2024_rank_scatter.png  used on input line 180.
 (pdftex.def)             Requested size: 251.2925pt x 251.29466pt.
 <season_2024_2025_rank_scatter.png, id=193, 433.62pt x 433.62pt>
 File: season_2024_2025_rank_scatter.png Graphic file (type png)
 <use season_2024_2025_rank_scatter.png>
-Package pdftex.def Info: season_2024_2025_rank_scatter.png  used on input line 188.
+Package pdftex.def Info: season_2024_2025_rank_scatter.png  used on input line 187.
 (pdftex.def)             Requested size: 251.2925pt x 251.29466pt.
 LaTeX Font Info:    Font shape `T1/txr/b/n' in size <10> not available
-(Font)              Font shape `T1/txr/bx/n' tried instead on input line 205.
+(Font)              Font shape `T1/txr/bx/n' tried instead on input line 204.
 
-Underfull \hbox (badness 10000) in paragraph at lines 206--207
+Underfull \hbox (badness 10000) in paragraph at lines 205--206
 []\T1/txr/bx/n/10 basic_eff\T1/txr/m/n/10 : ef-fi-ciency ra-tios (TS_PCT, EFG_PCT,
  []
 
 
-Underfull \hbox (badness 3343) in paragraph at lines 206--207
+Underfull \hbox (badness 3343) in paragraph at lines 205--206
 \T1/txr/m/n/10 AST_TO_RATIO) and previous-season win per-cent-age
  []
 
@@ -812,29 +812,29 @@ Underfull \hbox (badness 3343) in paragraph at lines 206--207
 [3]
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 251--257
+Underfull \hbox (badness 10000) in paragraph at lines 250--256
 []\T1/txr/bx/n/10 Expanded team sum-maries
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 251--257
+Underfull \hbox (badness 10000) in paragraph at lines 250--256
 \T1/txr/m/n/10 (\T1/txtt/m/n/10 Team_stats/all_seasons_team_summary.csv\T1/txr/m/n/10 ):
  []
 
 
 
 [4 <./season_2023_2024_rank_scatter.png> <./season_2024_2025_rank_scatter.png>]
-Underfull \hbox (badness 1418) in paragraph at lines 289--292
+Underfull \hbox (badness 1418) in paragraph at lines 288--291
 []\T1/txr/bx/n/10 All-NBA / MVP la-bel\T1/txr/m/n/10 : de-fine \T1/txtt/m/n/10 LABEL_ALLNBA_MVP \T1/txr/m/n/10 by
  []
 
 
-Underfull \hbox (badness 1748) in paragraph at lines 313--317
+Underfull \hbox (badness 1748) in paragraph at lines 312--316
 []\T1/txr/bx/n/10 All-Star pre-dic-tion\T1/txr/m/n/10 : a \T1/txtt/m/n/10 GradientBoostingClassifier
  []
 
 
-Underfull \hbox (badness 1028) in paragraph at lines 324--329
+Underfull \hbox (badness 1028) in paragraph at lines 323--328
 []\T1/txr/bx/n/10 Coarse po-si-tion clas-si-fi-ca-tion\T1/txr/m/n/10 : an XG-Boost multi-class
  []
 
@@ -845,12 +845,12 @@ Underfull \hbox (badness 1028) in paragraph at lines 324--329
 [5]
 
 
-Underfull \hbox (badness 3364) in paragraph at lines 501--508
+Underfull \hbox (badness 3364) in paragraph at lines 500--507
  []\T1/txss/m/n/10 All-Star pre-dic-tion. [] \T1/txr/m/n/10 A gra-di-ent boost-ing clas-si-fier us-ing
  []
 
 
-Underfull \hbox (badness 4096) in paragraph at lines 501--508
+Underfull \hbox (badness 4096) in paragraph at lines 500--507
 \T1/txr/m/n/10 per-player box-score fea-tures, min-utes, age, and one-hot
  []
 
@@ -904,7 +904,7 @@ Here is how much of TeX's memory you used:
  39608 multiletter control sequences out of 15000+600000
  648909 words of font info for 177 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 87i,12n,93p,1969b,585s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 87i,12n,93p,1200b,585s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/rtcxr.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/rtxb.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/rtxmi.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/rtxr.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/rtxr.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/t1xtt.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/txex.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/txsy.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/public/txfonts/txsyb.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
 Output written on aa.pdf (10 pages, 432207 bytes).
 PDF statistics:
